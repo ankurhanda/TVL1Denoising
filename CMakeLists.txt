@@ -41,7 +41,10 @@ FIND_PACKAGE(CVD REQUIRED)
 SET(
   SOURCES
   ./src/kernels/tvl1_denoising.cu
+  ./src/utils.h
 )
+
+
 
 
 CUDA_INCLUDE_DIRECTORIES(
