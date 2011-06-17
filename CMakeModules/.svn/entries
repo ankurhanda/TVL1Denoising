@@ -1,0 +1,126 @@
+10
+
+dir
+0
+svn+ssh://ahanda@cvsuser.doc.ic.ac.uk/vol/robotvision/repos/TrackingWork/CMakeModules
+svn+ssh://ahanda@cvsuser.doc.ic.ac.uk/vol/robotvision/repos
+add
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+f65956d5-798c-4503-8be5-3b679242f5fe
+
+FindCollada.cmake
+file
+
+
+
+add
+
+FindPTAM.cmake
+file
+
+
+
+add
+
+FindBullet.cmake
+file
+
+
+
+add
+
+FindPangolin.cmake
+file
+
+
+
+add
+
+Findfreenectsync.cmake
+file
+
+
+
+add
+
+FindCg.cmake
+file
+
+
+
+add
+
+SetPlatformVars.cmake
+file
+
+
+
+add
+
+Findfreenect.cmake
+file
+
+
+
+add
+
+FindCUDA.cmake
+file
+
+
+
+add
+
+FindCVD.cmake
+file
+
+
+
+add
+
+FindFREEGLUT.cmake
+file
+
+
+
+add
+
+FindCUDA
+dir
+
+
+
+add
+
+FindROBOTVISION.cmake
+file
+
+
+
+add
+
+FindGLEW.cmake
+file
+
+
+
+add
+
