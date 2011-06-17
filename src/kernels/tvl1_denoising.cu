@@ -55,7 +55,7 @@ __global__ void kernel_dualp(float *px, float *py, float *ux, float *uy, float s
 }
 
 
-__global__ void kernel_dualq(float *dq, float *u, float sigma, unsigned int stride, unsigned int width, unsigned int height)
+__global__ void kernel_dualq(float *dq, float *u, float* g, float sigma, float lambda, unsigned int stride, unsigned int width, unsigned int height)
 {
 
 
@@ -63,7 +63,7 @@ __global__ void kernel_dualq(float *dq, float *u, float sigma, unsigned int stri
     unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
 
     // write output vertex
-    dq[y*stride+x] = dq[y*stride+x] + sigma* u[y*stride+x];
+    dq[y*stride+x] = dq[y*stride+x] + sigma* lambda*lambda*(u[y*stride+x] - g[y*stride+x]);
 
     float reprojection = 0;
     reprojection   = fabs(dq[y*stride+x]);
@@ -75,7 +75,7 @@ __global__ void kernel_dualq(float *dq, float *u, float sigma, unsigned int stri
 }
 
 
-__global__ void kernel_update_u(float *px, float *py, float *u, float* g, float* dq, unsigned int stride, unsigned int width, unsigned int height, float tau, float lambda)
+__global__ void kernel_update_u(float *px, float *py, float *u, float* dq, unsigned int stride, unsigned int width, unsigned int height, float tau, float lambda)
 {
 
     unsigned int x = blockIdx.x*blockDim.x + threadIdx.x;
@@ -89,9 +89,9 @@ __global__ void kernel_update_u(float *px, float *py, float *u, float* g, float*
 
     float divp = dxp + dyp;
 
-    float u_prev = u[y*stride+x];
+//    float u_prev = u[y*stride+x];
 
-    u[y*stride+x] = (u_prev + tau*divp -lambda*lambda*dq[y*stride+x]);
+    u[y*stride+x] = (u[y*stride+x] + tau*(divp -lambda*lambda*dq[y*stride+x]));
 
 //    u_[y*stride+x] = 2*u[y*stride+x] - u_prev;
    //  u_[y*stride+x] = u[y*stride+x];// - u_prev;
@@ -133,12 +133,12 @@ extern "C" void launch_kernel_derivative_u(float* ux, float *uy, float* u, unsig
 }
 
 
-extern "C" void launch_kernel_update_u(float *px, float *py, float *u, float* g, float* dq, unsigned int stride, unsigned int mesh_width, unsigned int mesh_height, float tau, float lambda)
+extern "C" void launch_kernel_update_u(float *px, float *py, float *u, float* dq, unsigned int stride, unsigned int mesh_width, unsigned int mesh_height, float tau, float lambda)
 {
     // execute the kernel
     dim3 block(8, 8, 1);
     dim3 grid(mesh_width / block.x, mesh_height / block.y, 1);
-    kernel_update_u<<< grid, block>>>(px,py,u,g, dq, stride, mesh_width, mesh_height, tau, lambda);
+    kernel_update_u<<< grid, block>>>(px,py,u,dq, stride, mesh_width, mesh_height, tau, lambda);
     cutilCheckMsg("execution failed\n");
 }
 
@@ -154,12 +154,12 @@ extern "C" void launch_kernel_dual_variable_p(float *px, float *py, float* ux, f
 }
 
 
-extern "C" void launch_kernel_dual_variable_q(float *dq, float *u, float sigma, unsigned int stride, unsigned int mesh_width, unsigned int mesh_height)
+extern "C" void launch_kernel_dual_variable_q(float *dq, float *u, float *g, float sigma, float lambda, unsigned int stride, unsigned int mesh_width, unsigned int mesh_height)
 {
     // execute the kernel
     dim3 block(8, 8, 1);
     dim3 grid(mesh_width / block.x, mesh_height / block.y, 1);
-    kernel_dualq<<< grid, block>>>(dq,u,sigma, stride, mesh_width, mesh_height);
+    kernel_dualq<<< grid, block>>>(dq,u,g,sigma, lambda, stride, mesh_width, mesh_height);
     cutilCheckMsg("execution failed\n");
 }
 
