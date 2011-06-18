@@ -63,7 +63,7 @@ __global__ void kernel_dualq(float *dq, float *u, float* g, float sigma, float l
     unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
 
     // write output vertex
-    dq[y*stride+x] = dq[y*stride+x] + sigma* lambda*lambda*(u[y*stride+x] - g[y*stride+x]);
+    dq[y*stride+x] = dq[y*stride+x] + sigma* lambda*(u[y*stride+x] - g[y*stride+x]);
 
     float reprojection = 0;
     reprojection   = fabs(dq[y*stride+x]);
@@ -91,7 +91,7 @@ __global__ void kernel_update_u(float *px, float *py, float *u, float* dq, unsig
 
 //    float u_prev = u[y*stride+x];
 
-    u[y*stride+x] = (u[y*stride+x] + tau*(divp -lambda*lambda*dq[y*stride+x]));
+    u[y*stride+x] = (u[y*stride+x] + tau*(divp - lambda*dq[y*stride+x]));
 
 //    u_[y*stride+x] = 2*u[y*stride+x] - u_prev;
    //  u_[y*stride+x] = u[y*stride+x];// - u_prev;

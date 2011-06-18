@@ -41,7 +41,7 @@ int main( int /*argc*/, char* argv[] )
 {
 
   cudaGLSetGLDevice(cutGetMaxGflopsDeviceId());
-  pangolin::CreateGlutWindowAndBind("Main",512*2+150,512*2);
+  pangolin::CreateGlutWindowAndBind("Main",512*2+150 ,512*2);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glewInit();
 
@@ -151,7 +151,7 @@ int main( int /*argc*/, char* argv[] )
     static Var<bool> resetsq("ui.Reset Seq",false,false);
     static Var<bool> step("ui.Step", false, false);
     static Var<bool> continuous("ui.Run", false);
-    static Var<double> lambda("ui.lambda", 1.0 , 0, 50);
+    static Var<double> lambda("ui.lambda", 1.0 , 0, 4);
     static Var<double> sigma("ui.sigma", 0.01, 0, 5);
     static Var<double> tau("ui.tau", 0.01, 0, 5);
 //    static Var<double> tracking_err("ui.TErr");
@@ -168,13 +168,28 @@ int main( int /*argc*/, char* argv[] )
 
           static long unsigned int iterations = 0;
 
+          if( Pushed(resetsq) )
+          {
+              cutilSafeCall(cudaMemcpy2D(u, imagePitchFloat, input_image.data(), sizeof(float)*width, sizeof(float)*width, height, cudaMemcpyHostToDevice));
+              cutilSafeCall(cudaMemcpy2D(g, imagePitchFloat, input_image.data(), sizeof(float)*width, sizeof(float)*width, height, cudaMemcpyHostToDevice));
+
+
+               cutilSafeCall(cudaMemset(px,0,sizeof(float)*width*height));
+               cutilSafeCall(cudaMemset(py,0,sizeof(float)*width*height));
+
+               cutilSafeCall(cudaMemset(ux,0,sizeof(float)*width*height));
+               cutilSafeCall(cudaMemset(uy,0,sizeof(float)*width*height));
+
+               cutilSafeCall(cudaMemset(dq,0,sizeof(float)*width*height));
+          }
+
     if ( iterations % 100 == 0)
           {
 
          launch_kernel_derivative_u(ux,uy,u,stride, width , height);
          launch_kernel_dual_variable_p(px,py,ux,uy,0.5,stride,width,height);
-         launch_kernel_dual_variable_q(dq,u,g,1/(lambda*lambda),lambda, stride,width,height);
-         launch_kernel_update_u(px,py,u,dq,stride,width,height,1/(lambda*lambda+4),lambda);
+         launch_kernel_dual_variable_q(dq,u,g,1/(lambda),lambda, stride,width,height);
+         launch_kernel_update_u(px,py,u,dq,stride,width,height,1/(lambda+4),lambda);
 
     }
     iterations++;
