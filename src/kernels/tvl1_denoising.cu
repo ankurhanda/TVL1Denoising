@@ -1,5 +1,8 @@
-/*
-  */
+/**
+ * @author  Ankur Handa
+ * Copyright (C) 2011  Ankur Handa
+ *                     Imperial College London
+ **/
 
 #ifndef _SIMPLEGL_KERNEL_H_
 #define _SIMPLEGL_KERNEL_H_

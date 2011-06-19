@@ -50,7 +50,7 @@ int main( int /*argc*/, char* argv[] )
     .SetBounds(1.0, 0.0, 0, 150);
 
   CVD::Image<float> input_image;
-  img_load(input_image, "../data/images/lena_sigma25.png");
+  img_load(input_image, "../data/images/PockThesisImage.png");
 
   const unsigned width = input_image.size().x;
   const unsigned height = input_image.size().y;
@@ -139,9 +139,6 @@ int main( int /*argc*/, char* argv[] )
 
    cutilSafeCall(cudaMemset(dq,0,sizeof(float)*width*height));
 
-
-//  for(int frame_num=0; !pangolin::ShouldQuit();)
-
    unsigned int stride = (unsigned int)(imagePitchFloat/ sizeof(float));
    cout<< "stride = "<<stride <<endl;
 
@@ -151,9 +148,9 @@ int main( int /*argc*/, char* argv[] )
     static Var<bool> resetsq("ui.Reset Seq",false,false);
     static Var<bool> step("ui.Step", false, false);
     static Var<bool> continuous("ui.Run", false);
-    static Var<double> lambda("ui.lambda", 1.0 , 0, 4);
-    static Var<double> sigma("ui.sigma", 0.01, 0, 5);
-    static Var<double> tau("ui.tau", 0.01, 0, 5);
+    static Var<double> lambda("ui.lambda", 0.0001 , 0, 4);
+//    static Var<double> sigma("ui.sigma", 0.01, 0, 5);
+//    static Var<double> tau("ui.tau", 0.01, 0, 5);
 //    static Var<double> tracking_err("ui.TErr");
 
 
