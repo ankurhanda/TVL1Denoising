@@ -159,7 +159,7 @@ int main( int /*argc*/, char* argv[] )
 
     // Show Images
 //    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glColor4f(1.0,1.0,1.0,1.0);
+      glColor4f(1.0,1.0,1.0,1.0);
           glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 
