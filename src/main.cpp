@@ -62,14 +62,6 @@ int main( int /*argc*/, char* argv[] )
   View& view_image3 = Display("image3").SetAspect(width*1.0/height*1.0);
 
 
-//  View& d_imgs = pangolin::Display("images")
-//    .SetBounds(1.0, 0.0, 150, 1.0, false)
-//    .SetLayout(LayoutEqual)
-//    .AddDisplay(*d_img[0])
-//    .AddDisplay(*d_img[1])
-//    .AddDisplay(*d_img[2])
-//    .AddDisplay(*d_img[3]);
-
   View& d_imgs = pangolin::Display("images")
                      //.SetBounds(1.0, 0.8, 150, 1.0, false)
                      //first distance from bottom left of opengl window i.e. 0.7 is 70%
@@ -84,24 +76,11 @@ int main( int /*argc*/, char* argv[] )
                      ;
 
 
-//  View& d_3d = pangolin::Display("3d")
-//    .SetBounds(1.0, 0.0, 150, 1.0, -640/480.0)
-//    .SetHandler(new Handler3D(s_cam));
-
-
-
-
-
-
   cout << "width = "<<width<<endl;
   cout << "height = "<<height<<endl;
 
   GlBufferCudaPtr pbo(GlPixelUnpackBuffer,  width*height*sizeof(float), cudaGraphicsMapFlagsNone, GL_STREAM_DRAW);
   GlTexture tex_show(width, height, GL_LUMINANCE);
-
-
-
-//  GlBufferCudaPtr greypbo( GlPixelUnpackBuffer, width*height*sizeof(float), cudaGraphicsMapFlagsNone, GL_STREAM_DRAW );
 
   size_t imagePitchFloat;
   float *dq;
@@ -144,54 +123,52 @@ int main( int /*argc*/, char* argv[] )
 
   while(!pangolin::ShouldQuit())
   {
-//    const bool run = continuous || Pushed(step);
+
     static Var<bool> resetsq("ui.Reset Seq",false,false);
     static Var<bool> step("ui.Step", false, false);
     static Var<bool> continuous("ui.Run", false);
     static Var<double> lambda("ui.lambda", 0.0001 , 0, 4);
-//    static Var<double> sigma("ui.sigma", 0.01, 0, 5);
-//    static Var<double> tau("ui.tau", 0.01, 0, 5);
-//    static Var<double> tracking_err("ui.TErr");
+
 
 
     if(HasResized())
       DisplayBase().ActivateScissorAndClear();
 
-    // Show Images
-//    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-      glColor4f(1.0,1.0,1.0,1.0);
-          glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glColor4f(1.0,1.0,1.0,1.0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 
-          static long unsigned int iterations = 0;
+    static long unsigned int iterations = 0;
 
-          if( Pushed(resetsq) )
-          {
-              cutilSafeCall(cudaMemcpy2D(u, imagePitchFloat, input_image.data(), sizeof(float)*width, sizeof(float)*width, height, cudaMemcpyHostToDevice));
-              cutilSafeCall(cudaMemcpy2D(g, imagePitchFloat, input_image.data(), sizeof(float)*width, sizeof(float)*width, height, cudaMemcpyHostToDevice));
+    if( Pushed(resetsq) )
+    {
+        cutilSafeCall(cudaMemcpy2D(u, imagePitchFloat, input_image.data(), sizeof(float)*width, sizeof(float)*width, height, cudaMemcpyHostToDevice));
+        cutilSafeCall(cudaMemcpy2D(g, imagePitchFloat, input_image.data(), sizeof(float)*width, sizeof(float)*width, height, cudaMemcpyHostToDevice));
 
 
-               cutilSafeCall(cudaMemset(px,0,sizeof(float)*width*height));
-               cutilSafeCall(cudaMemset(py,0,sizeof(float)*width*height));
+        cutilSafeCall(cudaMemset(px,0,sizeof(float)*width*height));
+        cutilSafeCall(cudaMemset(py,0,sizeof(float)*width*height));
 
-               cutilSafeCall(cudaMemset(ux,0,sizeof(float)*width*height));
-               cutilSafeCall(cudaMemset(uy,0,sizeof(float)*width*height));
+        cutilSafeCall(cudaMemset(ux,0,sizeof(float)*width*height));
+        cutilSafeCall(cudaMemset(uy,0,sizeof(float)*width*height));
 
-               cutilSafeCall(cudaMemset(dq,0,sizeof(float)*width*height));
-          }
+        cutilSafeCall(cudaMemset(dq,0,sizeof(float)*width*height));
+    }
 
     if ( iterations % 100 == 0)
-          {
+    {
+//   for(int i = 0 ; i < 100; i ++){
 
          launch_kernel_derivative_u(ux,uy,u,stride, width , height);
          launch_kernel_dual_variable_p(px,py,ux,uy,0.5,stride,width,height);
-         launch_kernel_dual_variable_q(dq,u,g,1/(lambda),lambda, stride,width,height);
+         launch_kernel_dual_variable_q(dq,u,g,1/lambda,lambda, stride,width,height);
          launch_kernel_update_u(px,py,u,dq,stride,width,height,1/(lambda+4),lambda);
 
     }
     iterations++;
 
 
+    // if ( iterations % 100 == 0)
     {
         view_image0.Activate();
         DisplayFloatDeviceMem(&view_image0,g,imagePitchFloat,pbo,tex_show);
@@ -206,25 +183,10 @@ int main( int /*argc*/, char* argv[] )
         DisplayFloatDeviceMem(&view_image3,py,imagePitchFloat,pbo,tex_show);
     }
 
-
-//        CudaScopedMappedPtr cu(pbo);
-//        cutilSafeCall(cudaMemcpy2D(*cu,tex_show.width*sizeof(float), u, imagePitchFloat, tex_show.width * sizeof (float), tex_show.height, cudaMemcpyDeviceToDevice));
-//        CopyPboToTex(pbo,tex_show, GL_LUMINANCE32F_ARB, GL_FLOAT );
-//        tex_show.RenderToViewportFlipY();
-
-
-//    d_img[1]->ActivateAndScissor();
-//    CopyPboToTex(live->pbo_im,tex_show, GL_RGBA, GL_FLOAT );
-//    tex_show.RenderToViewportFlipY();
-
-//    d_img[2]->ActivateAndScissor();
-//    CopyPboToTex(pbo_debug,tex_show, GL_RGBA, GL_FLOAT );
-//    tex_show.RenderToViewportFlipY();
-
     d_panel.Render();
     glutSwapBuffers();
     glutMainLoopEvent();
-//    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+
   }
 
 
