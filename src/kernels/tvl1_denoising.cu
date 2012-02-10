@@ -9,6 +9,13 @@
 
 #include <stdio.h>
 #include <cutil_inline.h>
+
+texture<float, 2, cudaReadModeElementType> my_tex;
+
+
+const static cudaChannelFormatDesc chandesc_float1 =
+cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat);
+
 #ifndef max
 #define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
 #endif
@@ -103,6 +110,25 @@ __global__ void kernel_derivative_u(float *ux, float *uy, float *u, unsigned int
 
 }
 
+//__global__ void kernel_disparity_estimation(float *du, float *du0, float *dp,
+//                                            float *dq, float *dI1, float sigma_q,
+//                                            float sigma_p, float sigma_u, float lambda)
+//{
+
+//    unsigned int x = blockIdx.x*blockDim.x + threadIdx.x;
+//    unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
+
+//    float I2_u0 = tex2D(my_tex,);
+
+//    float data_term = lambda*(I2_u0 + (u-u0)*grad_I2_u0 - I1);
+
+//    dq[y*stride+u] = dq[y*stride+x] + sigma_q*(data_term);
+
+
+
+//}
+
+
 extern "C" void launch_kernel_derivative_u(float* ux, float *uy, float* u, unsigned int stride, unsigned int mesh_width, unsigned int mesh_height)
 {
     // execute the kernel
@@ -148,6 +174,7 @@ extern "C" void launch_kernel_dual_variable_q(float *dq, float *u, float *g, flo
     kernel_dualq<<< grid, block>>>(dq,u,g,sigma, lambda, stride, mesh_width, mesh_height);
     cutilCheckMsg("execution failed\n");
 }
+
 
 
 

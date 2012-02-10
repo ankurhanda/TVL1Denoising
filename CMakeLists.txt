@@ -41,6 +41,7 @@ FIND_PACKAGE(CVD REQUIRED)
 SET(
   SOURCES
   ./src/kernels/tvl1_denoising.cu
+  ./src/kernels/disparity1D.cu
   ./src/utils.h
 )
 
