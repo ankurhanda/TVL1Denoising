@@ -45,7 +45,7 @@ extern "C" void launch_disparity_kernel_p(float* dpx, float *dpy, float *du,
                                           unsigned int width, unsigned int height, unsigned int stride,
                                           float sigma_p);
 
-extern "C" void launch_disparity_kernel_u(float* dpx, float* dpy,float *du, float *du0,float *dq,
+extern "C" void launch_disparity_kernel_u(float* dpx, float* dpy,float *du, float *du0,float *dq, float *dI1,
                                           float sigma_u, float lambda, unsigned int width,
                                           unsigned int height, unsigned int stride);
 
@@ -182,20 +182,6 @@ int main( int /*argc*/, char* argv[] )
    cout<< "stride = "<<stride <<endl;
 
 
-//   // allocate array and copy image data
-//   cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat);
-//   cudaArray* cu_array;
-//   cutilSafeCall( cudaMallocArray( &cu_array, &channelDesc, width, height ));
-//   cutilSafeCall( cudaMemcpyToArray( cu_array, 0, 0, h_data, size, cudaMemcpyHostToDevice));
-
-//   // set texture parameters
-//   tex.addressMode[0] = cudaAddressModeWrap;
-//   tex.addressMode[1] = cudaAddressModeWrap;
-//   tex.filterMode = cudaFilterModeLinear;
-//   tex.normalized = true;    // access with normalized texture coordinates
-
-//   // Bind the array to the texture
-//   cutilSafeCall( cudaBindTextureToArray( tex, cu_array, channelDesc));
 
    int when2show = 0;
    int warps = 0;
@@ -236,7 +222,7 @@ int main( int /*argc*/, char* argv[] )
             u0data[i] = (float)u0initval;
         }
         cutilSafeCall(cudaMemcpy2D(u0,  imagePitchFloat, u0data, sizeof(float)*width, sizeof(float)*width, height, cudaMemcpyHostToDevice));
-        cutilSafeCall(cudaMemcpy2D(u,  imagePitchFloat, u0data, sizeof(float)*width, sizeof(float)*width, height, cudaMemcpyHostToDevice));
+        cutilSafeCall(cudaMemcpy2D( u,  imagePitchFloat, u0data, sizeof(float)*width, sizeof(float)*width, height, cudaMemcpyHostToDevice));
 
     }
 
@@ -293,29 +279,19 @@ int main( int /*argc*/, char* argv[] )
 //         launch_kernel_update_u(px,py,u,dq,stride,width,height,1/(lambda+4),lambda);
 //        launch_disparity_kernel_u (px,py,u,u0,dq,1/(lambda+4),lambda,width,height,stride);
 
-//        for (int  j = 0; j < max_warps ; j++)
-//            for ( int i = 0 ; i < max_iterations ; i++)
 
-//            {
-                launch_disparity_kernel   (dI2,width,height,stride);
-                launch_disparity_kernel_q (dq,u,u0,sigma_q,lambda,g,width,height,stride); // g = I1;
-                launch_disparity_kernel_p (px,py,u,width,height,stride,sigma_p);
-                launch_disparity_kernel_u (px,py,u,u0,dq,sigma_u,lambda,width,height,stride);
-                launch_disparity_kernel_I2warped(dI2warped,u,width,height,stride);
+        launch_disparity_kernel   (dI2,width,height,stride);
+        launch_disparity_kernel_q (dq,u,u0,sigma_q,lambda,g,width,height,stride); // g = I1;
+        launch_disparity_kernel_p (px,py,u,width,height,stride,sigma_p);
+        launch_disparity_kernel_u (px,py,u,u0,dq,g,sigma_u,lambda,width,height,stride); // g = I1;
+        launch_disparity_kernel_I2warped(dI2warped,u,width,height,stride);
 
-//                launch_disparity_kernel_copyu_display(udisp,u,width,height,stride);
-//                launch_disparity_kernel_copypx_display(pxdisp,px,width,height,stride);
-//            }
+
             iterations++;
 
-//            cudaMemcpy2D(matrix, width * sizeof(float), dev_matrix, pitch, width * sizeof(float), height, cudaMemcpyDeviceToHost);
 
             cudaMemcpy2D(h_udisp,width*sizeof(float),u,imagePitchFloat,width*sizeof(float),height,cudaMemcpyDeviceToHost);
             cudaMemcpy2D(h_pxdisp,width*sizeof(float),px,imagePitchFloat,width*sizeof(float),height,cudaMemcpyDeviceToHost);
-
-//            cutilSafeCall(cudaMemcpy2D(h_udisp ,  imagePitchFloat, u, sizeof(float)*width, sizeof(float)*width, height, cudaMemcpyDeviceToHost));
-//            cutilSafeCall(cudaMemcpy2D(h_pxdisp,  imagePitchFloat, px, sizeof(float)*width, sizeof(float)*width, height, cudaMemcpyDeviceToHost));
-
 
             float max_u=-9999.0f;
             float min_u = 9999.0f;
@@ -366,9 +342,11 @@ int main( int /*argc*/, char* argv[] )
 
         view_image1.Activate();
         DisplayFloatDeviceMem(&view_image1,udisp,imagePitchFloat,pbo,tex_show);
+//        DisplayFloatDeviceMem(&view_image1,u,imagePitchFloat,pbo,tex_show);
 
         view_image2.ActivateAndScissor();
         DisplayFloatDeviceMem(&view_image2,dI2warped,imagePitchFloat,pbo,tex_show);
+//        DisplayFloatDeviceMem(&view_image2,px,imagePitchFloat,pbo,tex_show);
 
         view_image3.ActivateAndScissor();
         DisplayFloatDeviceMem(&view_image3,py,imagePitchFloat,pbo,tex_show);

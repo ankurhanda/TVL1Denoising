@@ -43,6 +43,8 @@ __global__ void disparity_kernel_q(float* dq, float *du,
     float u0 = du0[y*stride+x];
 
     float data_term  = lambda*(I2_u0 + (u-u0)*grad_I2_u0 - I1_val);
+
+//    float data_term  = lambda*((I2_u0-I1_val)*(I2_u0-I1_val) + (u-u0)*grad_I2_u0*(u-u0)*grad_I2_u0 + 2*(u-u0)*grad_I2_u0*(I2_u0-I1_val));
     dq[y*stride+x] = dq[y*stride+x] + sigma_q*(data_term);
 
     // reprojection
@@ -103,7 +105,7 @@ extern "C" void launch_disparity_kernel_p(float* dpx, float *dpy, float *du,
 
 }
 
-__global__ void disparity_kernel_u(float* dpx, float* dpy,float *du, float *du0, float *dq,
+__global__ void disparity_kernel_u(float* dpx, float* dpy,float *du, float *du0, float *dq, float *dI1,
                                    float sigma_u, float lambda, unsigned int width,
                                    unsigned height, unsigned int stride)
 {
@@ -123,22 +125,24 @@ __global__ void disparity_kernel_u(float* dpx, float* dpy,float *du, float *du0,
 
     float grad_I2_u0 = tex2D(my_tex,xinterp1,(float)y) - tex2D(my_tex,xinterp0,(float)y);
 
-//    u[y*stride+x] = (u[y*stride+x] + tau*(divp - lambda*dq[y*stride+x]));
-
+    float I1_val = dI1[y*stride+x];
 
     float diff_term = lambda*dq[y*stride+x]*grad_I2_u0 - div_p;
-//    float diff_term = lambda*dq[y*stride+x] - div_p;
+
+//    float diff_term = lambda*(2*(du[y*stride+x]-du0[y*stride+x])*(grad_I2_u0)*grad_I2_u0 + 2*grad_I2_u0*(tex2D(my_tex,xinterp0,(float)y) - I1_val)) - div_p;
+
+
     du[y*stride+x]  = du[y*stride+x] - sigma_u*(diff_term);
 }
 
 
-extern "C" void launch_disparity_kernel_u(float* dpx, float* dpy,float *du, float *du0,float *dq,
+extern "C" void launch_disparity_kernel_u(float* dpx, float* dpy,float *du, float *du0,float *dq, float *dI1,
                                           float sigma_u, float lambda, unsigned int width,
                                           unsigned int height, unsigned int stride)
 {
     dim3 block(8,8,1);
     dim3 grid(width / block.x, height / block.y, 1);
-    disparity_kernel_u<<<grid,block>>>(dpx,dpy,du,du0,dq,sigma_u,lambda,width,height,stride);
+    disparity_kernel_u<<<grid,block>>>(dpx,dpy,du,du0,dq,dI1,sigma_u,lambda,width,height,stride);
 
 }
 
