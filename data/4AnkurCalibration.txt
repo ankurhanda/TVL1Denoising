@@ -1,0 +1,98 @@
+0.709874 0.945744 0.493648 0.514782 0.977786 
+reconstructing 
+Init 
+width 640	480
+============================================================
+Calibration
+focal length 0.709874 0.945744
+principle point 0.493648 0.514782
+============================================================
+Writing /tmp/im4Ankur0.png
+0.0333143
+updateFrame::0.978ms
+updateFrameFromHost::2.518ms
+Transform T_world_frame is
+0.993701 0.110304 -0.0197854 0.280643
+0.0815973 -0.833193 -0.546929 -0.255355
+-0.0768135 0.541869 -0.836945 0.810979
+
+Writing /tmp/im4Ankur1.png
+0.0333143
+updateFrame::0.629ms
+updateFrameFromHost::1.462ms
+Transform T_world_frame is
+0.993479 0.112002 -0.0213286 0.287891
+0.0822353 -0.83349 -0.54638 -0.255839
+-0.0789729 0.541063 -0.837266 0.808608
+
+Writing /tmp/im4Ankur2.png
+0.0333143
+updateFrame::1.392ms
+updateFrameFromHost::2.256ms
+Transform T_world_frame is
+0.993199 0.114383 -0.0217434 0.295475
+0.0840021 -0.833274 -0.546442 -0.25538
+-0.0806218 0.540899 -0.837215 0.805906
+
+Writing /tmp/im4Ankur3.png
+0.0333143
+updateFrame::1.219ms
+updateFrameFromHost::2.07ms
+Transform T_world_frame is
+0.992928 0.116793 -0.0213061 0.301659
+0.086304 -0.833328 -0.546001 -0.254563
+-0.081524 0.5403 -0.837514 0.804653
+
+Writing /tmp/im4Ankur4.png
+0.0333143
+updateFrame::1.348ms
+updateFrameFromHost::2.167ms
+Transform T_world_frame is
+0.992643 0.119107 -0.0217442 0.309666
+0.0880017 -0.833101 -0.546075 -0.254134
+-0.0831565 0.540144 -0.837454 0.802222
+
+Writing /tmp/im4Ankur5.png
+0.0333143
+updateFrame::1.349ms
+updateFrameFromHost::2.167ms
+Transform T_world_frame is
+0.992429 0.121049 -0.0208028 0.314892
+0.0901911 -0.833197 -0.545571 -0.253009
+-0.0833736 0.539564 -0.837806 0.801559
+
+Writing /tmp/im4Ankur6.png
+0.0333143
+updateFrame::1.284ms
+updateFrameFromHost::2.168ms
+Transform T_world_frame is
+0.992226 0.122575 -0.0215154 0.32067
+0.0911582 -0.833552 -0.544869 -0.254142
+-0.0847215 0.538672 -0.838245 0.799812
+
+Writing /tmp/im4Ankur7.png
+0.0333143
+updateFrame::1.335ms
+updateFrameFromHost::2.224ms
+Transform T_world_frame is
+0.992003 0.124427 -0.0211509 0.325942
+0.0930933 -0.834508 -0.543074 -0.254865
+-0.0852237 0.536762 -0.839418 0.799037
+
+Writing /tmp/im4Ankur8.png
+0.0333143
+updateFrame::1.324ms
+updateFrameFromHost::2.189ms
+Transform T_world_frame is
+0.991867 0.125492 -0.021234 0.332029
+0.0938678 -0.833933 -0.543824 -0.252767
+-0.0859533 0.537408 -0.838931 0.797979
+
+Writing /tmp/im4Ankur9.png
+0.0333143
+updateFrame::1.218ms
+updateFrameFromHost::2.106ms
+Transform T_world_frame is
+0.991515 0.128087 -0.0221943 0.33934
+0.095507 -0.833589 -0.544067 -0.250995
+-0.0881887 0.53733 -0.838748 0.796756
