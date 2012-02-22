@@ -12,11 +12,13 @@ public:
     iu::ImageGpu_32f_C1* d_ref_image;
     iu::ImageGpu_32f_C1* d_cur_image;
 
-    iu::ImageGpu_32f_C2* d_dual_reg;
-    iu::ImageGpu_32f_C1* d_dual_data;
+    iu::ImageGpu_32f_C1* d_px;
+    iu::ImageGpu_32f_C1* d_py;
 
-    iu::ImageGpu_32f_C1* d_primal;
-    iu::ImageGpu_32f_C1* d_primal_u0;
+    iu::ImageGpu_32f_C1* d_q;
+
+    iu::ImageGpu_32f_C1* d_u;
+    iu::ImageGpu_32f_C1* d_u0;
 
     iu::ImageGpu_32f_C1* d_data_term;
     iu::ImageGpu_32f_C1* d_gradient_term;
@@ -37,7 +39,7 @@ public:
 
     void doOneWarp()
     {
-        iu::copy(d_primal,d_primal_u0);
+        iu::copy(d_u,d_u0);
     }
 
     void updatePrimalData(const float lambda,
@@ -56,16 +58,18 @@ public:
                        const float sigma_dual_reg);
 
     void computeImageGradient_wrt_depth(const float2 fl,
-                                        const float2 pp,
-                                        TooN::Matrix<3,3> R_lr_,
-                                        TooN::Matrix<3,1> t_lr_
-                                        );
+                                   const float2 pp,
+                                   TooN::Matrix<3,3> R_lr_,
+                                   TooN::Matrix<3,1> t_lr_,
+                                   bool disparity,
+                                   float dmin,
+                                   float dmax);
     void updateWarpedImage(
                             const float2 fl,
                             const float2 pp,
                             TooN::Matrix<3,3> R_lr_,
-                            TooN::Matrix<3,1> t_lr_
-                          );
+                            TooN::Matrix<3,1> t_lr_,
+                            bool disparity);
 
     void allocateMemory(const unsigned int width, const unsigned int heightt);
 

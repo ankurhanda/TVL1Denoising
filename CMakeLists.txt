@@ -3,7 +3,7 @@
 PROJECT("TVL1Denoising")
 
 
-CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/CMakeModules/")
 
 # Overide with cmake -DCMAKE_BUILD_TYPE=Debug {dir}
@@ -14,6 +14,9 @@ ENDIF()
 # Platform configuration vars
 INCLUDE(SetPlatformVars)
 
+# Make sure your source doesn't get compiled until you fix the warnings!
+#ADD_DEFINITIONS( "-Wall -ansi -pedantic" )
+ADD_DEFINITIONS( "-O3" )
 
 
 #SET(BUILD_SHARED_LIBS TRUE)
@@ -27,25 +30,41 @@ FIND_PACKAGE(FREEGLUT REQUIRED)
 FIND_PACKAGE(CUDA REQUIRED)
 FIND_PACKAGE(GLEW REQUIRED)
 FIND_PACKAGE(Threads REQUIRED)
-#FIND_PACKAGE(freenect REQUIRED)
-#FIND_PACKAGE(freenectsync REQUIRED)
 FIND_PACKAGE(Boost 1.40 COMPONENTS thread filesystem REQUIRED)
 FIND_PACKAGE(Pangolin REQUIRED)
 FIND_PACKAGE(CVD REQUIRED)
+FIND_PACKAGE(MinimalImgUtilities REQUIRED)
+
 #FIND_PACKAGE(Collada)
 #FIND_PACKAGE(Bullet)
 
 #######################################################
 ## Sources
 
+
+
+
 SET(
   SOURCES
   ./src/kernels/tvl1_denoising.cu
   ./src/kernels/disparity1D.cu
+  ./src/kernels/Strumdepthestimation.cu
+  ./src/kernels/Strumdepthestimation.h
+  ./src/kernels/primal_dual_update.h
+   ./src/kernels/primal_dual_update.cu
+  ./src/kernels/cumath.h
   ./src/utils.h
 )
 
 
+LIST(APPEND CLASSES TVL1DepthEstimation)
+
+FOREACH(class ${CLASSES})
+  LIST(APPEND SOURCES ./src/depthest/${class}.cpp ./src/depthest/${class}.h)
+ENDFOREACH(class)
+
+
+#set( CMAKE_VERBOSE_MAKEFILE on )
 
 
 CUDA_INCLUDE_DIRECTORIES(
@@ -69,8 +88,17 @@ INCLUDE_DIRECTORIES(
   ${CUDA_SDK_ROOT_DIR}/common/inc
   ${Pangolin_INCLUDE_DIR}
   ${CVD_INCLUDE_DIR}
+  ${MinimalImgUtilities_INCLUDE_DIR}
+)
+
+
+LINK_DIRECTORIES(
+  ${CUDA_SDK_ROOT_DIR}/lib
+  ${CUDA_SDK_ROOT_DIR}/common/lib
+  ${Boost_LIBRARY_DIRS}
 
 )
+
 
 LINK_LIBRARIES(
   ${LIBRARY_NAME}
@@ -82,40 +110,16 @@ LINK_LIBRARIES(
   ${CVD_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
   ${FREEGLUT_LIBRARY}
+  ${MinimalImgUtilities_LIBRARY}
   libcutil_x86_64.a
-    -lGVars3
-
+   -lGVars3
 )
 
-LINK_DIRECTORIES(
-  ${CUDA_SDK_ROOT_DIR}/lib
-  ${CUDA_SDK_ROOT_DIR}/common/lib
-  ${Boost_LIBRARY_DIRS}
-)
 
 # We need shared memory atomics "--maxrregcount=32""--ptxas-options=--opt-level=100"
 SET(CUDA_NVCC_FLAGS  "-arch=sm_20" "--use_fast_math" "-O3"  "--ptxas-options=--verbose" "-keep"  )
 ADD_DEFINITIONS(-DCUDA_BUILD -DBT_USE_DOUBLE_PRECISION)
 
-#SET(CMAKE_CXX_FLAGS "-Wall")
-
-
-# compile an .so for the cuda kernel files
-#CUDA_ADD_LIBRARY(cudaVision SHARED
-#    ${SOURCES}
-#)
-
-#
-#Cuda Normals
-#
-#CUDA_ADD_EXECUTABLE(NormalsCuda
-#   ${SOURCES}
-#  ./src/main/NormalsCuda/main.cpp
-#)
-
-#
-# DTAM
-#
 
 CUDA_ADD_EXECUTABLE(TVL1Denoising
    ${SOURCES}
