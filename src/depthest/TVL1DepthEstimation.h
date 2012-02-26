@@ -33,6 +33,8 @@ public:
 
     bool allocated;
 
+    iu::ImageGpu_32f_C1 *d_temp_storage;
+
     int _nimages;
 
 public:
@@ -54,6 +56,7 @@ public:
     }
 
     void populateImageStack(const std::string& refimgfile);
+    void ObtainImageFromTexture(const int which_image);
 
     void InitialiseWithThisDepthMap(iu::ImageCpu_32f_C1 depth_vals);
 

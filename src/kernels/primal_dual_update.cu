@@ -40,7 +40,8 @@ __global__ void kernel_doOneIterationUpdatePrimal ( float* d_u,
                                                    const float sigma_u,
                                                    const float sigma_q,
                                                    const float sigma_p,
-                                                   const int _nimages)
+                                                   const int _nimages,
+                                                   const int  slice_stride)
 {
 
     /// Update Equations should be
@@ -213,7 +214,8 @@ void  doOneIterationUpdatePrimal ( float* d_u,
                                  const float sigma_u,
                                  const float sigma_q,
                                  const float sigma_p,
-                                 const int _nimages)
+                                 const int _nimages,
+                                 const int slice_stride)
 {
 
     dim3 block(boost::math::gcd<unsigned>(width,32), boost::math::gcd<unsigned>(height,32), 1);
@@ -233,7 +235,8 @@ void  doOneIterationUpdatePrimal ( float* d_u,
                                                        sigma_u,
                                                        sigma_q,
                                                        sigma_p,
-                                                      _nimages);
+                                                      _nimages,
+                                                      slice_stride);
 
 
 }
@@ -686,6 +689,23 @@ void BindDataImageStack ( const cudaArray *d_volumeArray,
 
 }
 
+
+__global__ void kernel_obtainImageSlice(const int which_image, float *d_dest_img, const unsigned int stride)
+{
+    unsigned int x = blockIdx.x*blockDim.x + threadIdx.x;
+    unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
+
+    d_dest_img[y*stride+x] = tex3D(TexImgStack,x,y,which_image);
+}
+
+void obtainImageSlice(const int which_image, float *d_dest_img, const unsigned int stride, const unsigned int width, const unsigned int height)
+{
+    dim3 block(8, 8, 1);
+    dim3 grid( width / block.x, height / block.y);
+
+    kernel_obtainImageSlice<<<grid,block>>>(which_image,d_dest_img,stride);
+
+}
 
 
 

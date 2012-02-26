@@ -65,6 +65,8 @@ void TVL1DepthEstimation::allocateMemory(const unsigned int width, const unsigne
     /// Store the warped image
     d_cur2ref_warped = new iu::ImageGpu_32f_C1(width,height);
 
+    d_temp_storage = new iu::ImageGpu_32f_C1(width,height);
+
     allocated = true;
 
     std::cout << "Memory has been allocated!" <<std::endl;
@@ -135,9 +137,14 @@ void TVL1DepthEstimation::InitialiseVariablesAndImageStack(float initial_val=0.5
 
         iu::setValue(0.0,d_data_term,d_data_term->roi());
         std::cout <<"stride = " << d_data_term->stride() << std::endl;
+        std::cout << "slice stride = "<< d_data_term->slice_stride() << endl;
 
         iu::setValue(0.0f,d_gradient_term,d_gradient_term->roi());
         std::cout <<"stride = " << d_gradient_term->stride() << std::endl;
+        std::cout << "slice stride = "<< d_gradient_term->slice_stride() << endl;
+
+        iu::setValue(0, d_temp_storage  , d_temp_storage->roi());
+        std::cout <<"stride = " << d_temp_storage->stride() << std::endl;
 
     }
 
@@ -177,7 +184,6 @@ void TVL1DepthEstimation::populateImageStack(const std::string& refimgfile)
     for(int i = 1 ; i <= _nimages-1 ; i++)
     {
         std::string curfilename(refimgfile.begin(), refimgfile.end()-8);
-        cout << "curfilename = "<< curfilename << endl;
 
         char fileno[5];
         int ref_file_num = atoi(refimgfile.substr(refimgfile.length()-8,4).c_str());
@@ -187,7 +193,9 @@ void TVL1DepthEstimation::populateImageStack(const std::string& refimgfile)
 
         std::cout << curfilename << std::endl;
         CVD::img_load(current_img,curfilename);
-        memcpy(h_volume+(i-1)*width*height,current_img.data(),width*height);
+
+
+        memcpy(h_volume+(i-1)*width*height,current_img.data(),sizeof(float)*width*height);
     }
 
 
@@ -278,11 +286,43 @@ void TVL1DepthEstimation::updatePrimalData(const float lambda, const float sigma
                                   sigma_primal,
                                   sigma_dual_data,
                                   sigma_dual_reg,
-                                  _nimages);
+                                  _nimages,
+                                  d_data_term->slice_stride());
 
 
 }
 
+
+void TVL1DepthEstimation::ObtainImageFromTexture(const int which_image)
+{
+
+    obtainImageSlice(which_image,
+                     d_temp_storage->data(),
+                     d_temp_storage->stride(),
+                     getImgWidth(),
+                     getImgHeight());
+
+    char fileName[30];
+    sprintf(fileName,"img_%03d.png",which_image);
+    cout << fileName << endl;
+    iu::imsave(d_temp_storage,fileName);
+
+//    int width = getImgWidth();
+//    int height = getImgHeight();
+
+//    iu::ImageCpu_32f_C1 *h_temp_storage = new iu::ImageCpu_32f_C1(IuSize(width,height)) ;
+//    iu::copy(d_temp_storage,h_temp_storage);
+//    cout << "copied" << endl;
+
+//    CVD::Image<float>cur_img = CVD::Image<float>(CVD::ImageRef(width,height));
+//    memcpy(cur_img.data(),h_temp_storage->data(),width*height);
+
+//    char fileName[30];
+//    sprintf(fileName,"img_%03d.png",which_image);
+//    cout << fileName << endl;
+//    CVD::img_save(cur_img, fileName);
+
+}
 
 //void TVL1DepthEstimation::updatePrimalData(const float lambda, const float sigma_primal, const float sigma_dual_data, const float sigma_dual_reg)
 //{

@@ -395,6 +395,11 @@ int main( int /*argc*/, char* argv[] )
 
   Stereo2D = new TVL1DepthEstimation("../data/scene_00_0750.png",5);
 
+  for(int i = 0 ; i < 4; i++)
+  {
+      Stereo2D->ObtainImageFromTexture(i);
+  }
+
   exit(1);
 
 

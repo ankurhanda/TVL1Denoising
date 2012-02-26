@@ -45,7 +45,8 @@ void  doOneIterationUpdatePrimal ( float* d_u,
                                  const float sigma_u,
                                  const float sigma_q,
                                  const float sigma_p,
-                                 const int _nimages);
+                                 const int _nimages,
+                                 const int slice_stride);
 
 void doComputeImageGradient_wrt_depth(const float2 fl,
                                     const float2 pp,
@@ -87,5 +88,7 @@ void BindDataImageStack ( const cudaArray *d_volume,
                           const unsigned int height,
                           const unsigned int depth,
                           cudaChannelFormatDesc channelDesc);
+
+void obtainImageSlice(const int which_image, float *d_dest_img, const unsigned int stride, const unsigned int width, const unsigned int height);
 
 #endif
