@@ -236,7 +236,8 @@ void  Fill3Dpoints(float* depth_vals, int ref_img_no, const TooN::Matrix<3>& K, 
 
 void get_camera_and_RT(float2& fl, float2& pp, TooN::Matrix<3,3>& R_lr_,
                        TooN::Matrix<3,1>&t_lr_, const unsigned int width,
-                       const unsigned int height, bool use_povray)
+                       const unsigned int height, bool use_povray,
+                       float *depth_vals)
 
 {
 
@@ -268,12 +269,15 @@ void get_camera_and_RT(float2& fl, float2& pp, TooN::Matrix<3,3>& R_lr_,
         K(2,1) = KMat[2][1];
         K(2,2) = KMat[2][2];
 
-        PoseRef  = computeTpov_cam(338,0);
-        PoseLive = computeTpov_cam(339,0);
+        int ref_no=567;
+        int live_no = 568;
 
-        float *depth_vals = new float[width*height];
+        PoseRef  = computeTpov_cam(ref_no,0);
+        PoseLive = computeTpov_cam(live_no,0);
 
-        Fill3Dpoints(depth_vals, 338, K, width, height, max_depth);
+//        float *depth_vals = new float[width*height];
+
+        Fill3Dpoints(depth_vals, ref_no, K, width, height, max_depth);
 
         fl = make_float2((K(0,0)/640.0f)*width,(K(1,1)/480.0f)*height);
         pp = make_float2((K(0,2)/640.0f)*width,(K(1,2)/480.0f)*height);
@@ -357,6 +361,10 @@ void get_camera_and_RT(float2& fl, float2& pp, TooN::Matrix<3,3>& R_lr_,
     if ( use_povray )
     {
         t_lr_ = t_lr_  / max_depth;
+        for(int i = 0 ; i < width*height ; i++)
+        {
+            depth_vals[i] = depth_vals[i]/max_depth;
+        }
     }
 
 }
@@ -378,10 +386,17 @@ int main( int /*argc*/, char* argv[] )
 
   TVL1DepthEstimation *Stereo2D;
 
-  if ( use_povray)
-      Stereo2D = new TVL1DepthEstimation("../data/scene_00_0338_by4.png","../data/scene_00_0339_by4.png");
-  else
-      Stereo2D = new TVL1DepthEstimation("../data/im4Ankur0_by2.png","../data/im4Ankur1_by2.png");
+//  if ( use_povray)
+//      Stereo2D = new TVL1DepthEstimation("../data/scene_00_0567.png","../data/scene_00_0568.png");
+//  else
+//      Stereo2D = new TVL1DepthEstimation("../data/im4Ankur0.png","../data/im4Ankur1.png");
+////    Stereo2D = new TVL1DepthEstimation("../data/Baby2/view0.png","../data/Baby2/view1.png");
+
+
+  Stereo2D = new TVL1DepthEstimation("../data/scene_00_0750.png",5);
+
+  exit(1);
+
 
   unsigned int width  = Stereo2D->getImgWidth();
   unsigned int height = Stereo2D->getImgHeight();
@@ -391,7 +406,9 @@ int main( int /*argc*/, char* argv[] )
   TooN::Matrix<3,3> R_lr_ = Zeros(3);
   TooN::Matrix<3,1> t_lr_ = Zeros(3);
 
-  get_camera_and_RT(fl,pp,R_lr_,t_lr_,width, height, use_povray);
+  float *depth_vals = new float[width*height];
+
+  get_camera_and_RT(fl,pp,R_lr_,t_lr_,width, height, use_povray, depth_vals);
 
   cout << "Width = "<< width << ", Height = " << height << endl;
 
@@ -431,14 +448,23 @@ int main( int /*argc*/, char* argv[] )
 
    iu::ImageGpu_32f_C1 u_disp(IuSize(width,height));
 
+   iu::ImageCpu_32f_C1 initialisation(IuSize(width,height));
+
+   float *initialisationdata = initialisation.data();
+
+   for (int i = 0; i < width*height ; i++)
+   {
+       *(initialisationdata+i) = depth_vals[i];
+   }
+
 
 
   while(!pangolin::ShouldQuit())
   {
 
     static Var<bool> resetsq("ui.Reset Seq",false,false);
-    static Var<float> lambda_("ui.lambda", 0.011, 0, 5);
-    float lambda = lambda_;
+    static Var<float> lambda("ui.lambda", 0.011, 0, 5);
+//    float lambda = lambda_;
 
     static Var<float> sigma_p("ui.sigma_p", 0.5 , 0, 4);
     static Var<float> sigma_q("ui.sigma_q", 0.02 , 0, 4);
@@ -447,8 +473,8 @@ int main( int /*argc*/, char* argv[] )
     static Var<int> max_iterations("ui.max_iterations", 300 , 1, 4000);
     static Var<int> max_warps("ui.max_warps", 20 , 0, 400);
 
-    static Var<float> u0initval("ui.u0initval", 0.5 , 0, 5);
-//    static Var<int> u0initval("ui.u0initval", -8 , -10, 10);
+    static Var<float> u0initval("ui.u0initval",0.5 ,0, 1);
+//    static Var<float> u0initval("ui.u0initval", -10 , -10, 10);
     static Var<float> dmin("ui.dmin", 0.01 , 0, 2);
     static Var<float> dmax("ui.dmax", 1 , 0, 4);
 
@@ -465,11 +491,13 @@ int main( int /*argc*/, char* argv[] )
         warps = 0 ;
         iterations = 0;
         Stereo2D->InitialiseVariables(u0initval);
+//        Stereo2D->InitialiseWithThisDepthMap(initialisation);
 
     }
 
     if ( warps == 0 && iterations == 0 )
     {
+//        Stereo2D->InitialiseVariables(u0initval);
         Stereo2D->computeImageGradient_wrt_depth(fl,
                                                 pp,
                                                 R_lr_,
@@ -524,8 +552,8 @@ int main( int /*argc*/, char* argv[] )
 
 
 
-         iu::copy(Stereo2D->d_u,&h_udisp);
-         iu::copy(Stereo2D->d_gradient_term,&h_pxdisp);
+//         iu::copy(Stereo2D->d_u,&h_udisp);
+//         iu::copy(Stereo2D->d_gradient_term,&h_pxdisp);
 
             float max_u =-9999.0f;
             float min_u = 9999.0f;
@@ -564,7 +592,7 @@ int main( int /*argc*/, char* argv[] )
                 {
                     float val = *(h_udisp_ptr+(i*width+j));
 //                    cout << "before = " << val << endl;
-                    *(h_udisp_ptr+(i*width+j)) = (val - min_u)/(max_u - min_u);
+                    *(h_udisp_ptr+(i*width+j)) = 1/(val*5);// ((val - min_u)/(max_u - min_u));
 //                    cout << " h_udisp.getPixel(j,i)" << h_udisp.getPixel(j,i) << endl;
                 }
             }

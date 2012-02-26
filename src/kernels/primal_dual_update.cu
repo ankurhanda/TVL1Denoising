@@ -13,13 +13,17 @@
 #include "cumath.h"
 #include "primal_dual_update.h"
 #include <iostream>
-
+#include <thrust/sort.h>
+#include <thrust/pair.h>
 
 
 texture<float, 2, cudaReadModeElementType> TexImgCur;
 
 const static cudaChannelFormatDesc chandesc_float1 =
 cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat);
+
+texture<float, 3, cudaReadModeElementType> TexImgStack;
+
 
 
 __global__ void kernel_doOneIterationUpdatePrimal ( float* d_u,
@@ -35,7 +39,8 @@ __global__ void kernel_doOneIterationUpdatePrimal ( float* d_u,
                                                    const float lambda,
                                                    const float sigma_u,
                                                    const float sigma_q,
-                                                   const float sigma_p)
+                                                   const float sigma_p,
+                                                   const int _nimages)
 {
 
     /// Update Equations should be
@@ -56,28 +61,138 @@ __global__ void kernel_doOneIterationUpdatePrimal ( float* d_u,
 
 //    d_u[y*stride+x] = u_update;
 
-    float grad_sqr = d_gradient_term[y*stride+x]*d_gradient_term[y*stride+x];
+//    float grad_sqr = d_gradient_term[y*stride+x]*d_gradient_term[y*stride+x];
 
-    float u_ = (d_u[y*stride+x] + sigma_u*(div_p));
+//    float u_ = (d_u[y*stride+x] + sigma_u*(div_p));
 
-    float u0 = d_u0[y*stride+x];
+//    float u0 = d_u0[y*stride+x];
 
-    float rho = d_data_term[y*stride+x] + (u_-u0)*d_gradient_term[y*stride+x];
+//    float rho = d_data_term[y*stride+x] + (u_-u0)*d_gradient_term[y*stride+x];
 
-    if ( rho < -sigma_u*lambda*grad_sqr)
+//    if ( rho < -sigma_u*lambda*grad_sqr)
 
-        d_u[y*stride+x] =  u_ + sigma_u*lambda*d_gradient_term[y*stride+x];
+//        d_u[y*stride+x] =  u_ + sigma_u*lambda*d_gradient_term[y*stride+x];
 
-    else if( rho > sigma_u*lambda*grad_sqr)
+//    else if( rho > sigma_u*lambda*grad_sqr)
 
-        d_u[y*stride+x] =  u_ - sigma_u*lambda*d_gradient_term[y*stride+x];
+//        d_u[y*stride+x] =  u_ - sigma_u*lambda*d_gradient_term[y*stride+x];
 
-    else if ( fabs(rho) <= sigma_u*lambda*grad_sqr)
-        d_u[y*stride+x] =  u_ - rho/(d_gradient_term[y*stride+x]+10E-6);
+//    else if ( fabs(rho) <= sigma_u*lambda*grad_sqr)
+//        d_u[y*stride+x] =  u_ - rho/(d_gradient_term[y*stride+x]+10E-6);
 
-    //    d_u[y*stride+x] = fmaxf(0.0f,fminf(1.0f,d_u[y*stride+x]));
 
-    //    float diff_term = d_q[y*stride+x]*d_gradient_term[y*stride+x] - div_p;
+
+    /// Have a confusion of _nimages
+
+//    float u0  = d_u0[y*stride+x];
+//    float u_  = d_u[y*stride+x] + sigma_u*(div_p);
+//    float ai, bi, ti;
+
+//    float *ti_vals = new float [_nimages-1];
+//    unsigned int *ti_indices = new unsigned int [_nimages-1];
+//    float sum_all_grads = 0;
+
+//    for(int i = 0 ; i < _nimages -1 ; i++)
+//    {
+
+//        bi = d_data_term[y*stride+x+i*slice_stride] - u0*d_gradient_term[y*stride+x+i*slice_stride];
+//        ai = d_gradient_term[y*stride+x+i*slice_stride];
+//        ti = -bi/(ai+1E-6);
+
+//        ti_vals[i]=ti;
+//        ti_indices[i]=i;
+
+//        sum_all_grads += ai;
+//    }
+
+    /// Sort them.
+//    thrust::stable_sort_by_key(ti_vals,ti_vals+_nimages-1,ti_indices);
+
+
+
+    /// Find if this lies in between any of these consecutive ti s.
+//    float sum_grads_less_k = 0;
+//    float sum_grads_great_k = sum_all_grads;
+//    int index = 0;
+//    bool found_min = false;
+//    float rho=0;
+
+//    for(int i = 1 ; i <_nimages - 1 ; i++)
+//    {
+//        index = ti_indices[i];
+
+//        rho = d_data_term[y*stride+x+index*slice_stride] + (u_-u0)*d_gradient_term[y*stride+x+index*slice_stride];
+
+//        sum_grads_less_k  += d_gradient_term[y*stride+x+index*slice_stride];
+//        sum_grads_great_k -= sum_grads_less_k;
+
+//        if (  rho < sigma_u*lambda*(sum_grads_less_k- sum_grads_great_k) && rho > d_gradient_term[y*stride+x+index*slice_stride]*(ti_vals[i-1] - ti_vals[i]) )
+//        {
+//            d_u[y*stride] = u_ + sigma_u*lambda*(sum_grads_less_k - sum_grads_great_k);
+//            found_min = true;
+//            return;
+//        }
+//    }
+
+//    if ( !found_min )
+//    {
+//        /// Bound check at 0
+//        index = ti_indices[0];
+//        rho = d_data_term[y*stride+index*slice_stride] + (u_-u0)*d_gradient_term[y*stride+x+index*slice_stride];
+//        if ( rho < -sigma_u*lambda*sum_all_grads)
+//        {
+//            d_u[y*stride+x]  = u_ +  sigma_u*lambda*sum_all_grads;
+//            return;
+//        }
+
+//        /// Bound check at last
+//        index = ti_indices[_nimages-2];
+//        rho = d_data_term[y*stride+index*slice_stride] + (u_-u0)*d_gradient_term[y*stride+x+index*slice_stride];
+//        if ( rho > sigma_u*lambda*sum_all_grads)
+//        {
+//            d_u[y*stride+x]  = u_ -  sigma_u*lambda*sum_all_grads;
+//            return;
+//        }
+
+
+//        /// Check for minima among the ti points
+//        float cur_min_cost = 1E20;
+//        int min_di_index = 0;
+
+//        for(int i = 0 ; i < _nimages-1 ; i++)
+//        {
+//            float di = ti_vals[i];
+//            float sum_rhos_at_di = 0;
+
+//            for(int j = 0 ; j < _nimages -1 ; j++)
+//            {
+//                bi = d_data_term[y*stride+x+j*slice_stride] - u0*d_gradient_term[y*stride+x+j*slice_stride];
+//                ai = d_gradient_term[y*stride+x+j*slice_stride];
+
+//                sum_rhos_at_di += fabs(ai*di-bi);
+//            }
+
+//           float min_cost = -div_p * di + lambda * sum_rhos_at_di;
+
+//           if ( min_cost < cur_min_cost)
+//           {
+//               cur_min_cost = min_cost;
+//               min_di_index = i;
+//           }
+
+//        }
+
+//        float rho_u = d_data_term[y*stride+x+min_di_index*slice_stride] + (u_- u0)*d_gradient_term[y*stride+x+min_di_index*slice_stride];
+//        float gradient_at_u = d_gradient_term[y*stride+x+min_di_index*slice_stride];
+
+//        d_u[y*stride+x] = u_ - rho_u/(gradient_at_u+1E-6);
+
+//        return;
+
+//    }
+
+//        d_u[y*stride+x] = fmaxf(1E-6,fminf(1.0f,d_u[y*stride+x]));
+//        float diff_term = d_q[y*stride+x]*d_gradient_term[y*stride+x] - div_p;
 
 
 
@@ -97,18 +212,19 @@ void  doOneIterationUpdatePrimal ( float* d_u,
                                  const float lambda,
                                  const float sigma_u,
                                  const float sigma_q,
-                                 const float sigma_p)
+                                 const float sigma_p,
+                                 const int _nimages)
 {
 
     dim3 block(boost::math::gcd<unsigned>(width,32), boost::math::gcd<unsigned>(height,32), 1);
     dim3 grid( width / block.x, height / block.y);
 
-    kernel_doOneIterationUpdatePrimal<<<grid,block>>>(d_u,
-                                                      d_u0,
+    kernel_doOneIterationUpdatePrimal<<<grid,block>>>( d_u,
+                                                       d_u0,
                                                        stride,
                                                        width,
                                                        height,
-                                                      d_data_term,
+                                                       d_data_term,
                                                        d_gradient_term,
                                                        d_px,
                                                        d_py,
@@ -116,8 +232,8 @@ void  doOneIterationUpdatePrimal ( float* d_u,
                                                        lambda,
                                                        sigma_u,
                                                        sigma_q,
-                                                       sigma_p);
-
+                                                       sigma_p,
+                                                      _nimages);
 
 
 }
@@ -154,7 +270,7 @@ __global__ void kernel_doOneIterationUpdateDualData( float* d_q,
 
 //    q_update = q_update/(1+epsilon*sigma_q);
 
-    float reprojection_q = max(1.0f,fabs(q_update)/*/lambda*/);
+    float reprojection_q = max(1.0f,fabs(q_update));
 
     d_q[y*stride+x] = q_update/reprojection_q;
 
@@ -238,7 +354,7 @@ __global__ void kernel_doOneIterationUpdateDualReg (float* d_px,
     float pyval = d_py[y*stride+x] + sigma_p*(u_dy);
 
     // reprojection
-    float reprojection_p   = fmaxf(1.0f,length( make_float2(pxval,pyval) ) );
+    float reprojection_p   = fmaxf(1.0f, length( make_float2(pxval,pyval) ) );
 
     d_px[y*stride+x] = pxval/reprojection_p;
     d_py[y*stride+x] = pyval/reprojection_p;
@@ -292,7 +408,9 @@ __global__ void kernel_computeImageGradient_wrt_depth(const float2 fl,
                                                const unsigned int height,
                                                bool disparity,
                                                float dmin,
-                                               float dmax )
+                                               float dmax,
+                                               const unsigned int which_image,
+                                               const unsigned int slice_stride)
 {
 
     if ( disparity)
@@ -335,7 +453,7 @@ __global__ void kernel_computeImageGradient_wrt_depth(const float2 fl,
 
 
         float zLinearised = d_u0[y*stride+x];
-        zLinearised = fmaxf(0.0f,fminf(1.0f,zLinearised));
+        zLinearised = fmaxf(1E-6,fminf(1.0f,zLinearised));
 
         cumat<3,1> p3d_r       = {uvnorm.x*zLinearised, uvnorm.y*zLinearised, zLinearised};
 
@@ -355,18 +473,25 @@ __global__ void kernel_computeImageGradient_wrt_depth(const float2 fl,
         p2D_live.y= fmaxf(0,fminf(height,p2D_live.y*fl.y + pp.y));
 
 
+
         float Ir =  d_ref_img[y*stride+x];
 
-        float Id =  tex2D(TexImgCur,  p2D_live.x+0.5f,p2D_live.y+0.5f);
-        float Idx = tex2D(TexImgCur,  p2D_live.x+0.5f+1.0f,p2D_live.y+0.5f);
 
-        if ( p2D_live.x+0.5+1 > (float) width)
-            Idx = Id;
+//        float Id =  tex2D(TexImgCur,  p2D_live.x+0.5f,p2D_live.y+0.5f);
+//        float Idx = tex2D(TexImgCur,  p2D_live.x+0.5f+1.0f,p2D_live.y+0.5f);
 
-        float Idy = tex2D(TexImgCur,  p2D_live.x+0.5f,p2D_live.y+0.5f+1.0f);
+        float Id =  tex3D(TexImgStack, p2D_live.x+0.5f,     p2D_live.y+0.5f,which_image);
+        float Idx = tex3D(TexImgStack, p2D_live.x+0.5f+1.0f,p2D_live.y+0.5f,which_image);
 
-        if ( p2D_live.y+0.5+1 > (float) height)
-            Idy = Id;
+
+//        if ( p2D_live.x+0.5+1 > (float) width)
+//            Idx = Id;
+
+//        float Idy = tex2D(TexImgCur,  p2D_live.x+0.5f,p2D_live.y+0.5f+1.0f);
+        float Idy = tex3D(TexImgStack,  p2D_live.x+0.5f,p2D_live.y+0.5f+1.0f, which_image);
+
+//        if ( p2D_live.y+0.5+1 > (float) height)
+//            Idy = Id;
 
 
         float2 dIdx = make_float2(Idx-Id, Idy-Id);
@@ -379,7 +504,7 @@ __global__ void kernel_computeImageGradient_wrt_depth(const float2 fl,
         float3 dpi_u = make_float3(fl.x/p3d_dest_vec.z, 0,-(fl.x*p3d_dest_vec.x)/(p3d_dest_vec.z*p3d_dest_vec.z));
         float3 dpi_v = make_float3(0, fl.y/p3d_dest_vec.z,-(fl.y*p3d_dest_vec.y)/(p3d_dest_vec.z*p3d_dest_vec.z));
 
-        cumat<3,1> dXdz = R*uvnormMat;///(zLinearised*zLinearised);
+        cumat<3,1> dXdz = R*uvnormMat; ///(-zLinearised*zLinearised);
 
         float3 dXdz_vec = {dXdz(0,0),dXdz(1,0),dXdz(2,0)};
 
@@ -387,8 +512,8 @@ __global__ void kernel_computeImageGradient_wrt_depth(const float2 fl,
 
         Id_minus_Ir = Id-Ir;
 
-        d_data_term[y*stride+x] = Id_minus_Ir ;//+ (u-u0)*dIdz;
-        d_gradient_term[y*stride+x] = dIdz;
+        d_data_term[y*stride+x + which_image*slice_stride] = Id_minus_Ir ;//+ (u-u0)*dIdz;
+        d_gradient_term[y*stride+x + which_image*slice_stride] = dIdz;
 
     }
 
@@ -409,7 +534,9 @@ void doComputeImageGradient_wrt_depth(const float2 fl,
                                     const unsigned int height,
                                     bool disparity,
                                     float dmin,
-                                    float dmax )
+                                    float dmax,
+                                    const unsigned int which_image,
+                                    const unsigned int slice_stride)
 {
 
     dim3 block(boost::math::gcd<unsigned>(width,32), boost::math::gcd<unsigned>(height,32), 1);
@@ -432,7 +559,9 @@ void doComputeImageGradient_wrt_depth(const float2 fl,
                                           height,
                                           disparity,
                                           dmin,
-                                          dmax);
+                                          dmax,
+                                          which_image,
+                                          slice_stride);
 }
 
 
@@ -530,7 +659,7 @@ void BindDepthTexture(float* cur_img,
                       unsigned int imgStride)
 
 {
-    cudaBindTexture2D(0,TexImgCur,cur_img,chandesc_float1,width, height,imgStride*sizeof(float));
+    cudaBindTexture2D(0,TexImgCur,cur_img,chandesc_float1,width,height,imgStride*sizeof(float));
 
     TexImgCur.addressMode[0] = cudaAddressModeClamp;
     TexImgCur.addressMode[1] = cudaAddressModeClamp;
@@ -539,7 +668,23 @@ void BindDepthTexture(float* cur_img,
 }
 
 
+void BindDataImageStack ( const cudaArray *d_volumeArray,
+                          const unsigned int width,
+                          const unsigned int height,
+                          const unsigned int depth,
+                          cudaChannelFormatDesc channelDesc)
+{
+    /// Bind array to 3D texture
+    cutilSafeCall(cudaBindTextureToArray(TexImgStack, d_volumeArray, channelDesc));
 
+    /// Set Texture Parameters
+    TexImgStack.normalized = false;                      // Access with normalized texture coordinates
+    TexImgStack.filterMode = cudaFilterModeLinear;       // Linear interpolation
+    TexImgStack.addressMode[0] = cudaAddressModeClamp;   // Clamp texture coordinates
+    TexImgStack.addressMode[1] = cudaAddressModeClamp;
+    TexImgStack.addressMode[2] = cudaAddressModeClamp;
+
+}
 
 
 

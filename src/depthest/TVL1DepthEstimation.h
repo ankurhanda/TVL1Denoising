@@ -20,27 +20,42 @@ public:
     iu::ImageGpu_32f_C1* d_u;
     iu::ImageGpu_32f_C1* d_u0;
 
-    iu::ImageGpu_32f_C1* d_data_term;
-    iu::ImageGpu_32f_C1* d_gradient_term;
+//    std::vector< iu::ImageGpu_32f_C1* >  d_data_term;
+//    std::vector< iu::ImageGpu_32f_C1* >  d_gradient_term;
+
+    iu::VolumeGpu_32f_C1 *d_data_term;
+    iu::VolumeGpu_32f_C1 *d_gradient_term;
 
     iu::ImageGpu_32f_C1* d_cur2ref_warped;
 
+    /// I think we don't need to store it but just for debug purposes!
+    cudaArray *d_volumeArray;
+
     bool allocated;
+
+    int _nimages;
 
 public:
 
     void InitialiseVariables(float initial_val);
+    void InitialiseVariablesAndImageStack(float initial_val);
 
     unsigned int getImgWidth (){ return d_ref_image->width();}
     unsigned int getImgHeight(){ return d_ref_image->height();}
+    unsigned int getNumImages(){ return _nimages; }
 
-    TVL1DepthEstimation():allocated(false){};
+    TVL1DepthEstimation():allocated(false),d_volumeArray(NULL),_nimages(2){};
     TVL1DepthEstimation(const std::string& refimgfile, const std::string& curimgfile);
+    TVL1DepthEstimation(const std::string& refimgfile, const int nimages);
 
     void doOneWarp()
     {
         iu::copy(d_u,d_u0);
     }
+
+    void populateImageStack(const std::string& refimgfile);
+
+    void InitialiseWithThisDepthMap(iu::ImageCpu_32f_C1 depth_vals);
 
     void updatePrimalData(const float lambda,
                      const float sigma_primal,

@@ -31,20 +31,21 @@ void doOneIterationUpdateDualData( float* d_q,
                                   const float sigma_q,
                                   const float sigma_p);
 
-void doOneIterationUpdatePrimal ( float* d_u,
-                                const float* d_u0,
-                                const unsigned int stride,
-                                const unsigned int width,
-                                const unsigned int height,
-                                const float* d_data_term,
-                                const float* d_gradient_term,
-                                const float* d_px,
-                                const float* d_py,
-                                const float* d_q,
-                                const float lambda,
-                                const float sigma_u,
-                                const float sigma_q,
-                                const float sigma_p);
+void  doOneIterationUpdatePrimal ( float* d_u,
+                                  const float* d_u0,
+                                 const unsigned int stride,
+                                 const unsigned int width,
+                                 const unsigned int height,
+                                 const float* d_data_term,
+                                 const float* d_gradient_term,
+                                 const float* d_px,
+                                 const float* d_py,
+                                 const float* d_q,
+                                 const float lambda,
+                                 const float sigma_u,
+                                 const float sigma_q,
+                                 const float sigma_p,
+                                 const int _nimages);
 
 void doComputeImageGradient_wrt_depth(const float2 fl,
                                     const float2 pp,
@@ -53,14 +54,16 @@ void doComputeImageGradient_wrt_depth(const float2 fl,
                                     float* d_data_term,
                                     float* d_gradient_term,
                                     TooN::Matrix<3,3>R_lr_,
-                                    TooN::Matrix<3,1>t_lr,
+                                    TooN::Matrix<3,1>t_lr_,
                                     const unsigned int stride,
                                     float* d_ref_img,
                                     const unsigned int width,
                                     const unsigned int height,
                                     bool disparity,
                                     float dmin,
-                                    float dmax );
+                                    float dmax,
+                                    const unsigned int which_image,
+                                    const unsigned int slice_stride);
 
 
 void doImageWarping(const float2 fl,
@@ -78,5 +81,11 @@ void BindDepthTexture        (float* cur_img,
                               unsigned int width,
                               unsigned int height,
                               unsigned int imgStride);
+
+void BindDataImageStack ( const cudaArray *d_volume,
+                          const unsigned int width,
+                          const unsigned int height,
+                          const unsigned int depth,
+                          cudaChannelFormatDesc channelDesc);
 
 #endif
