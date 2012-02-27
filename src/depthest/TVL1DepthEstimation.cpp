@@ -1,11 +1,13 @@
 #include "TVL1DepthEstimation.h"
 #include <iostream>
 #include "../kernels/primal_dual_update.h"
+#include "../kernels/pd_depth.cu"
 
 //TVL1DepthEstimation::TVL1DepthEstimation()
 //{
 //    allocated = false;
 //}
+
 
 TVL1DepthEstimation::TVL1DepthEstimation(const std::string& refimgfile, const std::string& curimgfile)
                     :allocated(false)
@@ -54,6 +56,15 @@ void TVL1DepthEstimation::allocateMemory(const unsigned int width, const unsigne
     /// Store the warped image
     d_cur2ref_warped = new iu::ImageGpu_32f_C1(width,height);
 
+#ifdef RICHARD_IMPLEMENTATION
+    for(int i = 0 ; i < _nimages - 1; i++)
+    {
+        d_data_derivs.push_back( new iu::ImageGpu_32f_C4 (width,height); );
+        d_dual_data.push_back(new iu::ImageGpu_32f_C1(width,height));
+    }
+    datasum = new iu::ImageGpu_32f_C1(width,height);
+#endif
+
     allocated = true;
 
 }
@@ -101,6 +112,21 @@ void TVL1DepthEstimation::InitialiseVariables(float initial_val=0.5)
 
 void TVL1DepthEstimation::updatedualReg(const float lambda, const float sigma_primal, const float sigma_dual_data, const float sigma_dual_reg)
 {
+
+
+#ifdef RICHARD_IMPLEMENTATION
+    /// From Richard!
+    dim3 block(boost::math::gcd<unsigned>(width,32), boost::math::gcd<unsigned>(height,32), 1);
+    dim3 grid( width / block.x, height / block.y);
+     updateDualReg<<<grid,blocks>>>(d_u->data(),
+                   d_px->data(),
+                   d_py->data(),
+                   sigma_dual_reg,
+                   lambda,
+                   0,
+                   int2(d_u->width(),d_u->height()),
+                   d_u->stride());
+#else
     doOneIterationUpdateDualReg( d_px->data(),
                                  d_py->data(),
                                  d_u->data(),
@@ -112,11 +138,43 @@ void TVL1DepthEstimation::updatedualReg(const float lambda, const float sigma_pr
                                  sigma_dual_data,
                                  sigma_dual_reg
                                 );
+#endif
+
 }
 
 void TVL1DepthEstimation::updatedualData(const float lambda, const float sigma_primal, const float sigma_dual_data, const float sigma_dual_reg)
 {
 
+#ifdef RICHARD_IMPLEMENTATION
+
+    dim3 block(boost::math::gcd<unsigned>(width,32), boost::math::gcd<unsigned>(height,32), 1);
+    dim3 grid( width / block.x, height / block.y);
+
+    for(int i = 0 ; i < _nimages-1;i++)
+    {
+         updateDualData<<<grid,blocks>>>(d_u->data(),
+                        d_data_derivs.at(i)->data(),
+                        d_dual_data.at(i)->data(),
+                        sigma_dual_data,
+                        d_dual_data.at(i)->stride(),
+                        d_data_derivs.at(i)->stride());
+    }
+
+    iu::setValue(0,datasum,datasum->roi());
+    for(int i = 0 ; i < _nimages-1; i++)
+    {
+            updateDataSum<<<grid,block>>(datasum->data(),
+                                         d_data_derivs.at(i)->data(),
+                                         d_dual_data.at(i)->data(),
+                                         d_dual_data.at(i)->stride(),
+                                         d_data_derivs.at(i)->stride());
+    }
+
+    float scaleData =1.0f/(_nimages-1);
+    iu::mulC(datasum,scaleData,datasum,datasum->roi());
+
+
+#else
     doOneIterationUpdateDualData( d_q->data(),
                                   d_q->stride(),
                                   d_q->width(),
@@ -131,9 +189,24 @@ void TVL1DepthEstimation::updatedualData(const float lambda, const float sigma_p
                                   sigma_dual_reg
                                  );
 
+#endif
+
 }
 void TVL1DepthEstimation::updatePrimalData(const float lambda, const float sigma_primal, const float sigma_dual_data, const float sigma_dual_reg)
 {
+
+#ifdef RICHARD_IMPLEMENTATION
+    dim3 block(boost::math::gcd<unsigned>(width,32), boost::math::gcd<unsigned>(height,32), 1);
+    dim3 grid( width / block.x, height / block.y);
+
+    updateSummedPrimal2Denoise<<<grid,blocks>>>(d_u->data(),
+                               datasum->data(),
+                               d_px->data(),
+                               d_py->data(),
+                               sigma_primal,
+                               int2(d_u->width(),d_u->height()),
+                               d_u->stride());
+#else
     doOneIterationUpdatePrimal(   d_u->data(),
                                   d_u0->data(),
                                   d_u->stride(),
@@ -149,6 +222,8 @@ void TVL1DepthEstimation::updatePrimalData(const float lambda, const float sigma
                                   sigma_dual_data,
                                   sigma_dual_reg
                                  );
+#endif
+
 
 
 }
@@ -159,10 +234,35 @@ void TVL1DepthEstimation::computeImageGradient_wrt_depth(const float2 fl,
                                                          TooN::Matrix<3,1> t_lr_,
                                                          bool disparity,
                                                          float dmin,
-                                                         float dmax)
+                                                         float dmax
+#ifdef RICHARD_IMPLEMENTATION
+                                                         , unsigned int which_image
+#endif
+                                                         )
+
 {
 
+#ifdef RICHARD_IMPLEMENTATION
 
+    cumat<3,3> R = cumat_from<3,3,float>(R_lr_);
+    cumat<3,1> t = cumat_from<3,1,float>(t_lr_);
+
+    BindDepthTexture(d_data_images.at(i)->data(),
+                     d_data_images.at(i)->width(),
+                     d_data_images.at(i)->height(),
+                     d_data_images.at(i)->stride());
+
+                     cu_compute_dI_dz<<<grid,block>>>(d_data_derivs.at(which_image)->data(),
+                                                      R,
+                                                      t,
+                                                      pp,
+                                                      fl,
+                                                      d_data_derivs.at(which_image)->stride(),
+                                                      d_ref_image->data(),
+                                                      d_ref_image->stride());
+
+
+#else
 
 
     doComputeImageGradient_wrt_depth(fl,
@@ -180,6 +280,8 @@ void TVL1DepthEstimation::computeImageGradient_wrt_depth(const float2 fl,
                                      disparity,
                                      dmin,
                                      dmax);
+
+#endif
 
 }
 

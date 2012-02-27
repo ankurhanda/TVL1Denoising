@@ -386,8 +386,8 @@ int main( int /*argc*/, char* argv[] )
 
   TVL1DepthEstimation *Stereo2D;
 
-  int ref_no = 453;
-  int live_no = 454;
+  int ref_no = 567;
+  int live_no = 568;
 
   char refimgfileName[30];
   char curimgfileName[30];

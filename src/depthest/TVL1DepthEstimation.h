@@ -4,6 +4,10 @@
 #include "../../minimal_imgutilities/src/iucore.h"
 #include "../kernels/primal_dual_update.h"
 #include "../../minimal_imgutilities/src/iuio.h"
+#include "../../minimal_imgutilities/src/iumath.h"
+
+
+#define RICHARD_IMPLEMENTATION 1
 
 class TVL1DepthEstimation{
 
@@ -25,7 +29,14 @@ public:
 
     iu::ImageGpu_32f_C1* d_cur2ref_warped;
 
+#ifdef RICHARD_IMPLEMENTATION
+    std::vector<iu::ImageGpu_32f_C4 *> d_data_derivs;
+    std::vector<iu::ImageGpu_32f_C1 *> d_dual_data;
+    iu::ImageGpu_32f_C1 *datasum;
+#endif
+
     bool allocated;
+    int _nimages;
 
 public:
 
@@ -34,7 +45,7 @@ public:
     unsigned int getImgWidth (){ return d_ref_image->width();}
     unsigned int getImgHeight(){ return d_ref_image->height();}
 
-    TVL1DepthEstimation():allocated(false){};
+    TVL1DepthEstimation():allocated(false),_nimages(2){};
     TVL1DepthEstimation(const std::string& refimgfile, const std::string& curimgfile);
 
     void doOneWarp()
