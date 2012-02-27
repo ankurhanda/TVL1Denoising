@@ -268,15 +268,15 @@ void get_camera_and_RT(float2& fl, float2& pp, TooN::Matrix<3,3>& R_lr_,
         K(2,1) = KMat[2][1];
         K(2,2) = KMat[2][2];
 
-        int ref_no = 453;
-        int live_no = 454;
+        int ref_no = 567;
+        int live_no = 568;
 
         PoseRef  = computeTpov_cam(ref_no,0);
         PoseLive = computeTpov_cam(live_no,0);
 
         float *depth_vals = new float[width*height];
 
-        Fill3Dpoints(depth_vals, 338, K, width, height, max_depth);
+        Fill3Dpoints(depth_vals, ref_no, K, width, height, max_depth);
 
         fl = make_float2((K(0,0)/640.0f)*width,(K(1,1)/480.0f)*height);
         pp = make_float2((K(0,2)/640.0f)*width,(K(1,2)/480.0f)*height);
@@ -376,15 +376,18 @@ int main( int /*argc*/, char* argv[] )
   View& d_panel = pangolin::CreatePanel("ui")
     .SetBounds(1.0, 0.0, 0, 150);
 
-  bool use_povray = true;
-  bool compute_disparity = false;
+  bool use_povray = false;
+  bool compute_disparity = true;
 
   TVL1DepthEstimation *Stereo2D;
 
   if ( use_povray)
-      Stereo2D = new TVL1DepthEstimation("../data/scene_00_0453.png","../data/scene_00_0454.png");
+      Stereo2D = new TVL1DepthEstimation("../data/scene_00_0567.png","../data/scene_00_0568.png");
   else
-      Stereo2D = new TVL1DepthEstimation("../data/im4Ankur0_by2.png","../data/im4Ankur1_by2.png");
+  {
+//      Stereo2D = new TVL1DepthEstimation("../data/im4Ankur0_by2.png","../data/im4Ankur1_by2.png");
+      Stereo2D = new TVL1DepthEstimation("../data/Baby2/view0.png","../data/Baby2/view1.png");
+  }
 
   unsigned int width  = Stereo2D->getImgWidth();
   unsigned int height = Stereo2D->getImgHeight();
@@ -450,8 +453,8 @@ int main( int /*argc*/, char* argv[] )
     static Var<int> max_iterations("ui.max_iterations", 300 , 1, 4000);
     static Var<int> max_warps("ui.max_warps", 20 , 0, 400);
 
-    static Var<float> u0initval("ui.u0initval", 0.5 , 0, 1);
-//    static Var<int> u0initval("ui.u0initval", -8 , -10, 10);
+//    static Var<float> u0initval("ui.u0initval", 0.5 , 0, 1);
+    static Var<int> u0initval("ui.u0initval", -8 , -10, 10);
     static Var<float> dmin("ui.dmin", 0.01 , 0, 2);
     static Var<float> dmax("ui.dmax", 1 , 0, 4);
 
