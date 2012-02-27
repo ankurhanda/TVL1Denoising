@@ -29,7 +29,9 @@ void doOneIterationUpdateDualData( float* d_q,
                                   const float lambda,
                                   const float sigma_u,
                                   const float sigma_q,
-                                  const float sigma_p);
+                                  const float sigma_p,
+                                  const int which_image,
+                                  const unsigned int slice_stride);
 
 void  doOneIterationUpdatePrimal ( float* d_u,
                                   const float* d_u0,
@@ -67,6 +69,18 @@ void doComputeImageGradient_wrt_depth(const float2 fl,
                                     const unsigned int which_image,
                                     const unsigned int slice_stride);
 
+void doSumDualTimesGradient(float* d_q,
+                            unsigned int stride,
+                            unsigned int width,
+                            unsigned int height,
+                            float *d_gradient_term,
+                            float lambda,
+                            float sigma_primal,
+                            float sigma_dual_data,
+                            float sigma_dual_reg,
+                            const int which_image,
+                            const int slice_stride,
+                            float* d_sum_dual_times_grad);
 
 
 //doDatatermSorting( d_data_term->data(),

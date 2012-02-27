@@ -71,6 +71,10 @@ void TVL1DepthEstimation::allocateMemory(const unsigned int width, const unsigne
         d_dual_data.push_back( d_dual_var_data );
     }
 
+
+    d_sum_dual_times_grad    =  new iu::ImageGpu_32f_C1(width,height);
+
+
     allocated = true;
 
     std::cout << "Memory has been allocated!" <<std::endl;
@@ -105,6 +109,9 @@ void TVL1DepthEstimation::InitialiseVariables(float initial_val=0.5)
 
         iu::setValue(initial_val, d_u    , d_u->roi());
         std::cout <<"stride = " << d_u->stride() << std::endl;
+
+        iu::setValue(0.0, d_sum_dual_times_grad , d_sum_dual_times_grad->roi());
+        std::cout <<"stride = " << d_sum_dual_times_grad->stride() << std::endl;
 
     }
 
@@ -229,6 +236,7 @@ void TVL1DepthEstimation::updatedualData(const float lambda, const float sigma_p
 {
 
 
+
     for(int i = 0 ; i < _nimages-1; i++)
     {
         doOneIterationUpdateDualData( d_dual_data.at(i)->data(),
@@ -243,8 +251,32 @@ void TVL1DepthEstimation::updatedualData(const float lambda, const float sigma_p
                                       sigma_primal,
                                       sigma_dual_data,
                                       sigma_dual_reg,
-                                      i);
+                                      i,
+                                      d_data_term->slice_stride()
+                                      );
+
     }
+
+    iu::setValue(0,d_sum_dual_times_grad,d_sum_dual_times_grad->roi());
+
+    for(int i = 0 ; i < _nimages-1; i++)
+    {
+        doSumDualTimesGradient(d_dual_data.at(i)->data(),
+                               d_dual_data.at(i)->stride(),
+                               d_dual_data.at(i)->width(),
+                               d_dual_data.at(i)->height(),
+                               d_gradient_term->data(),
+                               lambda,
+                               sigma_primal,
+                               sigma_dual_data,
+                               sigma_dual_reg,
+                               i,
+                               d_data_term->slice_stride(),
+                               d_sum_dual_times_grad->data());
+    }
+
+
+
 
 }
 void TVL1DepthEstimation::updatePrimalData(const float lambda, const float sigma_primal, const float sigma_dual_data, const float sigma_dual_reg)
@@ -258,7 +290,7 @@ void TVL1DepthEstimation::updatePrimalData(const float lambda, const float sigma
                                   d_gradient_term->data(),
                                   d_px->data(),
                                   d_py->data(),
-                                  d_q->data(),
+                                  d_sum_dual_times_grad->data(),
                                   lambda,
                                   sigma_primal,
                                   sigma_dual_data,

@@ -389,7 +389,7 @@ int main( int /*argc*/, char* argv[] )
   TVL1DepthEstimation *Stereo2D;
 
   int refimgno = 750;
-  int nimages = 5;
+  int nimages = 6;
 
   char refimgfilename[40];
   sprintf(refimgfilename,"../data/scene_00_%04d.png",refimgno);
@@ -472,8 +472,10 @@ int main( int /*argc*/, char* argv[] )
   {
 
     static Var<bool> resetsq("ui.Reset Seq",false,false);
-    static Var<float> lambda("ui.lambda", 0.011, 0, 5);
+    static Var<float> lambda_("ui.lambda", 0.011, 0, 5);
 //    float lambda = lambda_;
+
+    float lambda = lambda_ / (float)nimages;
 
     static Var<float> sigma_p("ui.sigma_p", 0.5 , 0, 4);
     static Var<float> sigma_q("ui.sigma_q", 0.02 , 0, 4);
@@ -522,10 +524,6 @@ int main( int /*argc*/, char* argv[] )
 
         }
 
-        Stereo2D->sortDataterms();
-//        cout << "Computed the gradients and sorted them already" << endl;
-
-
     }
 
     if ( iterations > max_iterations)
@@ -547,7 +545,6 @@ int main( int /*argc*/, char* argv[] )
                                                          dmax,
                                                          i);
             }
-//            Stereo2D->sortDataterms();
         }
 
         warps++;
@@ -561,15 +558,15 @@ int main( int /*argc*/, char* argv[] )
                                sigma_q,
                                sigma_p);
 
-//         Stereo2D->updatedualData(lambda,
-//                                tau,
-//                                sigma_q,
-//                                sigma_p);
+         Stereo2D->updatedualData(lambda,
+                                tau,
+                                sigma_q,
+                                sigma_p);
 
-//         Stereo2D->updatePrimalData(lambda,
-//                                tau,
-//                                sigma_q,
-//                                sigma_p);
+         Stereo2D->updatePrimalData(lambda,
+                                tau,
+                                sigma_q,
+                                sigma_p);
 
 //         Stereo2D->updateWarpedImage(fl,
 //                                    pp,
@@ -581,55 +578,55 @@ int main( int /*argc*/, char* argv[] )
 
 
 
-         cout << "Just before copying" << endl;
-//         iu::copy(Stereo2D->d_u,&h_udisp);
-         cout << "After copying" << endl;
+//         cout << "Just before copying" << endl;
+         iu::copy(Stereo2D->d_u,&h_udisp);
+//         cout << "After copying" << endl;
 //         iu::copy(Stereo2D->d_gradient_term,&h_pxdisp);
 
-//            float max_u =-9999.0f;
-//            float min_u = 9999.0f;
-//            float max_p = max_u;
-//            float min_p = min_u;
-//            int max_row, min_row;
-//            int max_col, min_col;
+            float max_u =-9999.0f;
+            float min_u = 9999.0f;
+            float max_p = max_u;
+            float min_p = min_u;
+            int max_row, min_row;
+            int max_col, min_col;
 
-//            for (int i = 0 ; i < height; i++)
-//            {
-//                for(int j = 0 ; j < width ; j++ )
-//                {
-////                    int index = i*width+j;
+            for (int i = 0 ; i < height; i++)
+            {
+                for(int j = 0 ; j < width ; j++ )
+                {
+//                    int index = i*width+j;
 
-//                    if ( h_udisp.getPixel(j,i) > max_u)
-//                    {
-//                        max_u = h_udisp.getPixel(j,i);
-//                        max_col = j;
-//                        max_row = i;
-//                    }
-//                    if ( h_udisp.getPixel(j,i) < min_u)
-//                    {
-//                        min_u = h_udisp.getPixel(j,i);
-//                        min_col = j;
-//                        min_row = i;
-//                    }
+                    if ( h_udisp.getPixel(j,i) > max_u)
+                    {
+                        max_u = h_udisp.getPixel(j,i);
+                        max_col = j;
+                        max_row = i;
+                    }
+                    if ( h_udisp.getPixel(j,i) < min_u)
+                    {
+                        min_u = h_udisp.getPixel(j,i);
+                        min_col = j;
+                        min_row = i;
+                    }
 
-//                }
-//            }
+                }
+            }
 
-            //iu::copy(h_udisp,)
-//            float *h_udisp_ptr = h_udisp.data();
-//            for(int i = 0 ; i < height; i++)
-//            {
-//                for(int j = 0 ; j < width; j++)
-//                {
-//                    float val = *(h_udisp_ptr+(i*width+j));
-////                    cout << "before = " << val << endl;
-//                    *(h_udisp_ptr+(i*width+j)) = 1/(val*5);// ((val - min_u)/(max_u - min_u));
-////                    cout << " h_udisp.getPixel(j,i)" << h_udisp.getPixel(j,i) << endl;
-//                }
-//            }
 
-//            iu::copy(&h_udisp,&u_disp);
-//            cout << "max_u =" << max_u << ", min_u= "<< min_u << endl;
+            float *h_udisp_ptr = h_udisp.data();
+            for(int i = 0 ; i < height; i++)
+            {
+                for(int j = 0 ; j < width; j++)
+                {
+                    float val = *(h_udisp_ptr+(i*width+j));
+//                    cout << "before = " << val << endl;
+                    *(h_udisp_ptr+(i*width+j)) = 1/(val*5);// ((val - min_u)/(max_u - min_u));
+//                    cout << " h_udisp.getPixel(j,i)" << h_udisp.getPixel(j,i) << endl;
+                }
+            }
+
+            iu::copy(&h_udisp,&u_disp);
+            cout << "max_u =" << max_u << ", min_u= "<< min_u << endl;
 //            cout << "max_p =" << max_p << ", min_p= "<< min_p << endl;
     }
     when2show++;

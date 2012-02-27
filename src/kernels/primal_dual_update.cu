@@ -59,9 +59,10 @@ __global__ void kernel_doOneIterationUpdatePrimal ( float* d_u,
 
     float div_p = dxp + dyp;
 
-//    float u_update = d_u[y*stride+x] + sigma_u*div_p - sigma_u*lambda*d_q[y*stride+x]*d_gradient_term[y*stride+x];
+    /// Here d_q is already multiplied with gradient - REMEMBER!
+    float u_update = d_u[y*stride+x] + sigma_u*div_p - sigma_u*/*lambda**/d_q[y*stride+x];
 
-//    d_u[y*stride+x] = u_update;
+    d_u[y*stride+x] = u_update;
 
 //    float grad_sqr = d_gradient_term[y*stride+x]*d_gradient_term[y*stride+x];
 
@@ -85,113 +86,113 @@ __global__ void kernel_doOneIterationUpdatePrimal ( float* d_u,
 
 
     /// Have a confusion of _nimages
-    int length = _nimages-1;
+//    int length = _nimages-1;
 
-    float u0  = d_u0[y*stride+x];
-    float u_  = d_u[y*stride+x] + sigma_u*(div_p);
-    float sum_all_grads = 0.;
+//    float u0  = d_u0[y*stride+x];
+//    float u_  = d_u[y*stride+x] + sigma_u*(div_p);
+//    float sum_all_grads = 0.;
 
-    /// Sum all the gradients
-    for(int i = 0 ; i < _nimages - 1 ; i++)
-    {
-        sum_all_grads += d_gradient_term[y*stride+x+i*slice_stride];
-    }
+//    /// Sum all the gradients
+//    for(int i = 0 ; i < _nimages - 1 ; i++)
+//    {
+//        sum_all_grads += d_gradient_term[y*stride+x+i*slice_stride];
+//    }
 
-    /// Find if this lies in between any of these consecutive ti s.
-    float sum_grads_lt_k = 0;
-    float sum_grads_gt_k = sum_all_grads;
-    int index = 0, prev_index=0;
-    bool found_min = false;
-    float rho=0;
+//    /// Find if this lies in between any of these consecutive ti s.
+//    float sum_grads_lt_k = 0;
+//    float sum_grads_gt_k = sum_all_grads;
+//    int index = 0, prev_index=0;
+//    bool found_min = false;
+//    float rho=0;
 
-    for(int i = 1 ; i < length ; i++)
-    {
-        prev_index = d_sortedindices[y*stride+x+(i-1)*slice_stride];
-        index = d_sortedindices[y*stride+x+i*slice_stride];
+//    for(int i = 1 ; i < length ; i++)
+//    {
+//        prev_index = d_sortedindices[y*stride+x+(i-1)*slice_stride];
+//        index = d_sortedindices[y*stride+x+i*slice_stride];
 
-        rho = d_data_term[y*stride+x+index*slice_stride] + (u_-u0)*d_gradient_term[y*stride+x+index*slice_stride];
+//        rho = d_data_term[y*stride+x+index*slice_stride] + (u_-u0)*d_gradient_term[y*stride+x+index*slice_stride];
 
-        sum_grads_lt_k  += d_gradient_term[y*stride+x+index*slice_stride];
-        sum_grads_gt_k  -= d_gradient_term[y*stride+x+index*slice_stride];
+//        sum_grads_lt_k  += d_gradient_term[y*stride+x+index*slice_stride];
+//        sum_grads_gt_k  -= d_gradient_term[y*stride+x+index*slice_stride];
 
-        float bi_prev = d_data_term[y*stride+x+prev_index*slice_stride] + (-u0)*d_gradient_term[y*stride+x+prev_index*slice_stride];
-        float ai_prev = d_gradient_term[y*stride+x+index*slice_stride];
+//        float bi_prev = d_data_term[y*stride+x+prev_index*slice_stride] + (-u0)*d_gradient_term[y*stride+x+prev_index*slice_stride];
+//        float ai_prev = d_gradient_term[y*stride+x+index*slice_stride];
 
-        float bi_cur = d_data_term[y*stride+x+index*slice_stride] + (-u0)*d_gradient_term[y*stride+x+index*slice_stride];
-        float ai_cur = d_gradient_term[y*stride+x+index*slice_stride];
+//        float bi_cur = d_data_term[y*stride+x+index*slice_stride] + (-u0)*d_gradient_term[y*stride+x+index*slice_stride];
+//        float ai_cur = d_gradient_term[y*stride+x+index*slice_stride];
 
-        float ti_prev  = -bi_prev/(ai_prev+1E-6);
-        float ti_cur   = -bi_cur/(ai_cur+1E-6);
+//        float ti_prev  = -bi_prev/(ai_prev+1E-6);
+//        float ti_cur   = -bi_cur/(ai_cur+1E-6);
 
-        if (  rho < sigma_u*lambda*(sum_grads_lt_k- sum_grads_gt_k) &&
-              rho > d_gradient_term[y*stride+x+index*slice_stride]*(ti_prev - ti_cur) + sigma_u*lambda*(sum_grads_lt_k- sum_grads_gt_k) )
-        {
-            d_u[y*stride] = u_ + sigma_u*lambda*(-sum_grads_lt_k + sum_grads_gt_k);
-            found_min = true;
-            return;
-        }
-    }
+//        if (  rho < sigma_u*lambda*(sum_grads_lt_k- sum_grads_gt_k) &&
+//              rho > d_gradient_term[y*stride+x+index*slice_stride]*(ti_prev - ti_cur) + sigma_u*lambda*(sum_grads_lt_k- sum_grads_gt_k) )
+//        {
+//            d_u[y*stride] = u_ + sigma_u*lambda*(-sum_grads_lt_k + sum_grads_gt_k);
+//            found_min = true;
+//            return;
+//        }
+//    }
 
-    if ( !found_min )
-    {
-        /// Bound check at 0
-        index = d_sortedindices[y*stride+x+0];
-        rho = d_data_term[y*stride+index*slice_stride] + (u_-u0)*d_gradient_term[y*stride+x+index*slice_stride];
-        if ( rho < -sigma_u*lambda*sum_all_grads)
-        {
-            d_u[y*stride+x]  = u_ +  sigma_u*lambda*sum_all_grads;
-            return;
-        }
+//    if ( !found_min )
+//    {
+//        /// Bound check at 0
+//        index = d_sortedindices[y*stride+x+0];
+//        rho = d_data_term[y*stride+index*slice_stride] + (u_-u0)*d_gradient_term[y*stride+x+index*slice_stride];
+//        if ( rho < -sigma_u*lambda*sum_all_grads)
+//        {
+//            d_u[y*stride+x]  = u_ +  sigma_u*lambda*sum_all_grads;
+//            return;
+//        }
 
-        /// Bound check at last
-        index = d_sortedindices[y*stride+x+(length-1)*slice_stride];
+//        /// Bound check at last
+//        index = d_sortedindices[y*stride+x+(length-1)*slice_stride];
 
-        rho = d_data_term[y*stride+index*slice_stride] + (u_-u0)*d_gradient_term[y*stride+x+index*slice_stride];
-        if ( rho > sigma_u*lambda*sum_all_grads)
-        {
-            d_u[y*stride+x]  = u_ -  sigma_u*lambda*sum_all_grads;
-            return;
-        }
+//        rho = d_data_term[y*stride+index*slice_stride] + (u_-u0)*d_gradient_term[y*stride+x+index*slice_stride];
+//        if ( rho > sigma_u*lambda*sum_all_grads)
+//        {
+//            d_u[y*stride+x]  = u_ -  sigma_u*lambda*sum_all_grads;
+//            return;
+//        }
 
 
-        /// Check for minima among the ti points
-        float cur_min_cost = 1E20;
-        int min_di_index = 0;
+//        /// Check for minima among the ti points
+//        float cur_min_cost = 1E20;
+//        int min_di_index = 0;
 
-        for(int i = 0 ; i < length ; i++)
-        {
-            float bi = (d_data_term[y*stride+index*slice_stride] + (-u0)*d_gradient_term[y*stride+x+index*slice_stride]);
-            float ai = d_gradient_term[y*stride+x+index*slice_stride];
-            float di = -bi/(ai+1E-6);
+//        for(int i = 0 ; i < length ; i++)
+//        {
+//            float bi = (d_data_term[y*stride+index*slice_stride] + (-u0)*d_gradient_term[y*stride+x+index*slice_stride]);
+//            float ai = d_gradient_term[y*stride+x+index*slice_stride];
+//            float di = -bi/(ai+1E-6);
 
-            float sum_rhos_at_di = 0;
+//            float sum_rhos_at_di = 0;
 
-            for(int j = 0 ; j < length ; j++)
-            {
-                bi = d_data_term[y*stride+x+j*slice_stride] - u0*d_gradient_term[y*stride+x+j*slice_stride];
-                ai = d_gradient_term[y*stride+x+j*slice_stride];
+//            for(int j = 0 ; j < length ; j++)
+//            {
+//                bi = d_data_term[y*stride+x+j*slice_stride] - u0*d_gradient_term[y*stride+x+j*slice_stride];
+//                ai = d_gradient_term[y*stride+x+j*slice_stride];
 
-                sum_rhos_at_di += fabs(ai*di-bi);
-            }
+//                sum_rhos_at_di += fabs(ai*di-bi);
+//            }
 
-           float min_cost = -div_p * di + lambda * sum_rhos_at_di;
+//           float min_cost = -div_p * di + lambda * sum_rhos_at_di;
 
-           if ( min_cost < cur_min_cost)
-           {
-               cur_min_cost = min_cost;
-               min_di_index = i;
-           }
+//           if ( min_cost < cur_min_cost)
+//           {
+//               cur_min_cost = min_cost;
+//               min_di_index = i;
+//           }
 
-        }
+//        }
 
-        float rho_u = d_data_term[y*stride+x+min_di_index*slice_stride] + (u_- u0)*d_gradient_term[y*stride+x+min_di_index*slice_stride];
-        float gradient_at_u = d_gradient_term[y*stride+x+min_di_index*slice_stride];
+//        float rho_u = d_data_term[y*stride+x+min_di_index*slice_stride] + (u_- u0)*d_gradient_term[y*stride+x+min_di_index*slice_stride];
+//        float gradient_at_u = d_gradient_term[y*stride+x+min_di_index*slice_stride];
 
-        d_u[y*stride+x] = u_ - rho_u/(gradient_at_u+1E-6);
+//        d_u[y*stride+x] = u_ - rho_u/(gradient_at_u+1E-6);
 
-        return;
+//        return;
 
-    }
+//    }
 
 //        d_u[y*stride+x] = fmaxf(1E-6,fminf(1.0f,d_u[y*stride+x]));
 //        float diff_term = d_q[y*stride+x]*d_gradient_term[y*stride+x] - div_p;
@@ -255,7 +256,10 @@ __global__ void kernel_doOneIterationUpdateDualData( float* d_q,
                                              const float lambda,
                                              const float sigma_u,
                                              const float sigma_q,
-                                             const float sigma_p)
+                                             const float sigma_p,
+                                             const int which_image,
+                                             const unsigned int slice_stride
+                                             )
 {
 
     /// Update Equations should be
@@ -265,18 +269,15 @@ __global__ void kernel_doOneIterationUpdateDualData( float* d_q,
     unsigned int x = blockIdx.x*blockDim.x + threadIdx.x;
     unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
 
-//    float epsilon=0.001;
-    float u = d_u[y*stride+x];
+    float u  = d_u[y*stride+x];
     float u0 = d_u0[y*stride+x];
 
-    float q_update = d_q[y*stride+x] + sigma_q*lambda*(d_data_term[y*stride+x]+ (u - u0)*d_gradient_term[y*stride+x]);
-
-//    q_update = q_update/(1+epsilon*sigma_q);
+    float using_data = d_data_term[y*stride+x+which_image*slice_stride]+ (u - u0)*d_gradient_term[y*stride+x+which_image*slice_stride];
+    float q_update = d_q[y*stride+x] + sigma_q*/*lambda**/(using_data);
 
     float reprojection_q = max(1.0f,fabs(q_update));
 
     d_q[y*stride+x] = q_update/reprojection_q;
-
 
 
 }
@@ -294,7 +295,10 @@ void doOneIterationUpdateDualData( float* d_q,
                                   const float lambda,
                                   const float sigma_u,
                                   const float sigma_q,
-                                  const float sigma_p)
+                                  const float sigma_p,
+                                  const int which_image,
+                                  const unsigned int slice_stride
+                                  )
 {
 
     dim3 block(boost::math::gcd<unsigned>(width,32), boost::math::gcd<unsigned>(height,32), 1);
@@ -311,7 +315,10 @@ void doOneIterationUpdateDualData( float* d_q,
                                                        lambda,
                                                        sigma_u,
                                                        sigma_q,
-                                                       sigma_p);
+                                                       sigma_p,
+                                                       which_image,
+                                                       slice_stride
+                                                       );
 
 }
 
@@ -353,8 +360,8 @@ __global__ void kernel_doOneIterationUpdateDualReg (float* d_px,
         u_dy = d_u[(y+1)*stride+x] - d_u[y*stride+x];
     }
 
-    float pxval = d_px[y*stride+x] + sigma_p*(u_dx);
-    float pyval = d_py[y*stride+x] + sigma_p*(u_dy);
+    float pxval = d_px[y*stride+x] + sigma_p*(u_dx)*lambda;
+    float pyval = d_py[y*stride+x] + sigma_p*(u_dy)*lambda;
 
     // reprojection
     float reprojection_p   = fmaxf(1.0f, length( make_float2(pxval,pyval) ) );
@@ -721,21 +728,21 @@ __global__ void kernel_sortDataterms(float *d_data_term,
     unsigned int x = blockIdx.x*blockDim.x + threadIdx.x;
     unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
 
-    int length = _nimages-1;
-    float u0 = d_u0[y*d_u0_stride+x];
+//    int length = _nimages-1;
+//    float u0 = d_u0[y*d_u0_stride+x];
 
-    float *ti_vals = (float*)malloc(sizeof(float)*length);
-    unsigned char *ind = (unsigned char*)malloc(sizeof(unsigned char)*length);
-    float bi, ai;
+//    float *ti_vals = (float*)malloc(sizeof(float)*length);
+//    unsigned char *ind = (unsigned char*)malloc(sizeof(unsigned char)*length);
+//    float bi, ai;
 
-    /// Save the tis
-    for(int i = 0 ; i < length ; i++ )
-    {
-        bi = d_data_term[y*d_data_stride+x+i*data_slice_stride] - u0*d_gradient_term[y*d_data_stride+x+i*data_slice_stride];
-        ai = d_gradient_term[y*d_data_stride+x+i*data_slice_stride];
-//        ti_vals[i] = -bi/(ai+1E-6);
-        ind[i] = i;
-    }
+//    /// Save the tis
+//    for(int i = 0 ; i < length ; i++ )
+//    {
+//        bi = d_data_term[y*d_data_stride+x+i*data_slice_stride] - u0*d_gradient_term[y*d_data_stride+x+i*data_slice_stride];
+//        ai = d_gradient_term[y*d_data_stride+x+i*data_slice_stride];
+////        ti_vals[i] = -bi/(ai+1E-6);
+//        ind[i] = i;
+//    }
 
 //    if (x == 120 && y == 140)
 //    {
@@ -792,13 +799,13 @@ __global__ void kernel_sortDataterms(float *d_data_term,
 //    }
 
     /// Put them in array
-    for(int i = 0; i < length ; i++)
-    {
-        d_sortedindices[y*d_sortedindices_stride + x + i*d_sortedindices_slice_stride] = 0;//(unsigned char)ind[i];
-    }
+//    for(int i = 0; i < length ; i++)
+//    {
+//        d_sortedindices[y*d_sortedindices_stride + x + i*d_sortedindices_slice_stride] = 0;//(unsigned char)ind[i];
+//    }
 
-    free(ti);
-    free(ind);
+//    free(ti);
+//    free(ind);
 
 
 
@@ -832,4 +839,58 @@ void doDatatermSorting(float *d_data_term,
                                          d_sortedindices_slice_stride,
                                          d_sortedindices_stride,
                                          _nimages);
+}
+
+
+__global__ void  kernel_doSumDualTimesGradient(float *d_q,
+                                               unsigned int stride,
+                                               unsigned int width,
+                                               unsigned int height,
+                                               float *d_gradient_term,
+                                               float lambda,
+                                               float sigma_primal,
+                                               float sigma_dual_data,
+                                               float sigma_dual_reg,
+                                               const int which_image,
+                                               const int slice_stride,
+                                               float* d_sum_dual_times_grad)
+{
+    unsigned int x = blockIdx.x*blockDim.x + threadIdx.x;
+    unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
+
+
+    d_sum_dual_times_grad[y*stride+x] += d_q[y*stride+x]*d_gradient_term[y*stride+x+which_image*slice_stride];
+
+
+}
+
+
+void doSumDualTimesGradient(float* d_q,
+                            unsigned int stride,
+                            unsigned int width,
+                            unsigned int height,
+                            float *d_gradient_term,
+                            float lambda,
+                            float sigma_primal,
+                            float sigma_dual_data,
+                            float sigma_dual_reg,
+                            const int which_image,
+                            const int slice_stride,
+                            float* d_sum_dual_times_grad)
+{
+    dim3 block(boost::math::gcd<unsigned>(width,32), boost::math::gcd<unsigned>(height,32), 1);
+    dim3 grid( width / block.x, height / block.y);
+
+    kernel_doSumDualTimesGradient<<<grid,block>>>(d_q,
+                                  stride,
+                                  width,
+                                  height,
+                                  d_gradient_term,
+                                  lambda,
+                                  sigma_primal,
+                                  sigma_dual_data,
+                                  sigma_dual_reg,
+                                  which_image,
+                                  slice_stride,
+                                  d_sum_dual_times_grad);
 }

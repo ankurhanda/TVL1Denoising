@@ -26,6 +26,8 @@ public:
     std::vector < iu::ImageGpu_32f_C1* > d_dataimages;
     std::vector < iu::ImageGpu_32f_C1* > d_dual_data;
 
+    iu::ImageGpu_32f_C1 *d_sum_dual_times_grad;
+
     iu::ImageGpu_32f_C1* d_cur2ref_warped;
 
     iu::VolumeGpu_8u_C1 *d_sortedindices;
