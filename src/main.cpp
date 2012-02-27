@@ -268,8 +268,11 @@ void get_camera_and_RT(float2& fl, float2& pp, TooN::Matrix<3,3>& R_lr_,
         K(2,1) = KMat[2][1];
         K(2,2) = KMat[2][2];
 
-        PoseRef  = computeTpov_cam(338,0);
-        PoseLive = computeTpov_cam(339,0);
+        int ref_no = 453;
+        int live_no = 454;
+
+        PoseRef  = computeTpov_cam(ref_no,0);
+        PoseLive = computeTpov_cam(live_no,0);
 
         float *depth_vals = new float[width*height];
 
@@ -379,7 +382,7 @@ int main( int /*argc*/, char* argv[] )
   TVL1DepthEstimation *Stereo2D;
 
   if ( use_povray)
-      Stereo2D = new TVL1DepthEstimation("../data/scene_00_0338_by4.png","../data/scene_00_0339_by4.png");
+      Stereo2D = new TVL1DepthEstimation("../data/scene_00_0453.png","../data/scene_00_0454.png");
   else
       Stereo2D = new TVL1DepthEstimation("../data/im4Ankur0_by2.png","../data/im4Ankur1_by2.png");
 
