@@ -450,7 +450,7 @@ int main( int /*argc*/, char* argv[] )
     static Var<int> max_iterations("ui.max_iterations", 300 , 1, 4000);
     static Var<int> max_warps("ui.max_warps", 20 , 0, 400);
 
-    static Var<float> u0initval("ui.u0initval", 0.5 , 0, 5);
+    static Var<float> u0initval("ui.u0initval", 0.5 , 0, 1);
 //    static Var<int> u0initval("ui.u0initval", -8 , -10, 10);
     static Var<float> dmin("ui.dmin", 0.01 , 0, 2);
     static Var<float> dmax("ui.dmax", 1 , 0, 4);
