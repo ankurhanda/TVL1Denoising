@@ -47,25 +47,29 @@ void TVL1DepthEstimation::allocateMemory(const unsigned int width, const unsigne
     /// primal variable initialisation
     d_u0     =  new iu::ImageGpu_32f_C1(width,height);
 
-
     d_data_term = new iu::VolumeGpu_32f_C1(width,height,_nimages-1);
 
     d_gradient_term = new iu::VolumeGpu_32f_C1(width,height,_nimages-1);
 
-//    for(int i = 0 ; i < _nimages - 1 ; i++)
-//    {
-//        /// data term saved e.g. I(d) + (d-d0)*gradI_d0 - Ir
-//        d_data_term.at(i)     =  new iu::ImageGpu_32f_C1(width,height);
-
-//        /// gradient term saved e.g. gradI_d0
-//        d_gradient_term.at(i) =  new iu::ImageGpu_32f_C1(width,height);
-//    }
+    d_sortedindices = new iu::VolumeGpu_8u_C1(width,height,_nimages-1);
 
 
     /// Store the warped image
     d_cur2ref_warped = new iu::ImageGpu_32f_C1(width,height);
 
     d_temp_storage = new iu::ImageGpu_32f_C1(width,height);
+
+    for(int i = 0 ; i < _nimages - 1; i++)
+    {
+        iu::ImageGpu_32f_C1* d_img = new iu::ImageGpu_32f_C1 (width,height);
+        d_dataimages.push_back( d_img );
+    }
+
+    for(int i = 0 ; i < _nimages - 1; i++)
+    {
+        iu::ImageGpu_32f_C1* d_dual_var_data = new iu::ImageGpu_32f_C1 (width,height);
+        d_dual_data.push_back( d_dual_var_data );
+    }
 
     allocated = true;
 
@@ -146,9 +150,13 @@ void TVL1DepthEstimation::InitialiseVariablesAndImageStack(float initial_val=0.5
         iu::setValue(0, d_temp_storage  , d_temp_storage->roi());
         std::cout <<"stride = " << d_temp_storage->stride() << std::endl;
 
-    }
 
-//    allocated = true;
+    }
+    else
+    {
+        cout<< "Can't initialise because memory isn't allocated yet!" << endl;
+        exit(EXIT_FAILURE);
+    }
 
 }
 
@@ -176,10 +184,6 @@ void TVL1DepthEstimation::populateImageStack(const std::string& refimgfile)
     InitialiseVariablesAndImageStack(0.5);
     cout << "Variables have been initialised" << endl;
 
-    float *h_volume = new float[(_nimages-1)*width*height];
-
-    CVD::Image<float> current_img(CVD::ImageRef(width,height));
-
     cout << "_nimages = " << _nimages << endl;
     for(int i = 1 ; i <= _nimages-1 ; i++)
     {
@@ -191,40 +195,9 @@ void TVL1DepthEstimation::populateImageStack(const std::string& refimgfile)
 
         curfilename = curfilename + std::string(fileno) + ".png";
 
-        std::cout << curfilename << std::endl;
-        CVD::img_load(current_img,curfilename);
+        d_dataimages.at(i-1) = iu::imread_cu32f_C1(curfilename);
 
-
-        memcpy(h_volume+(i-1)*width*height,current_img.data(),sizeof(float)*width*height);
     }
-
-
-
-
-    /// Create 3D Array
-    int        const pwI = width;
-    int        const phI = height;
-    int        const pdI = _nimages-1;
-    cudaExtent const volumeSize = {pwI, phI, pdI};
-
-
-    cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<float>();
-    CUDA_SAFE_CALL(cudaMalloc3DArray(&d_volumeArray, &channelDesc, volumeSize));
-
-    /// Copy data to 3D array
-    cudaMemcpy3DParms copyParams = {0};
-    copyParams.srcPtr   = make_cudaPitchedPtr((void*)h_volume, volumeSize.width*sizeof(float), volumeSize.width, volumeSize.height);
-    copyParams.dstArray = d_volumeArray;
-    copyParams.extent   = volumeSize;
-    copyParams.kind     = cudaMemcpyHostToDevice;
-    cutilSafeCall( cudaMemcpy3D(&copyParams) );
-
-    /// Bind Image Stack
-    BindDataImageStack (d_volumeArray,
-                        width,
-                        height,
-                        _nimages-1,
-                        channelDesc);
 
 
 }
@@ -255,19 +228,23 @@ void TVL1DepthEstimation::updatedualReg(const float lambda, const float sigma_pr
 void TVL1DepthEstimation::updatedualData(const float lambda, const float sigma_primal, const float sigma_dual_data, const float sigma_dual_reg)
 {
 
-    doOneIterationUpdateDualData( d_q->data(),
-                                  d_q->stride(),
-                                  d_q->width(),
-                                  d_q->height(),
-                                  d_data_term->data(),
-                                  d_gradient_term->data(),
-                                  d_u->data(),
-                                  d_u0->data(),
-                                  lambda,
-                                  sigma_primal,
-                                  sigma_dual_data,
-                                  sigma_dual_reg
-                                 );
+
+    for(int i = 0 ; i < _nimages-1; i++)
+    {
+        doOneIterationUpdateDualData( d_dual_data.at(i)->data(),
+                                      d_dual_data.at(i)->stride(),
+                                      d_dual_data.at(i)->width(),
+                                      d_dual_data.at(i)->height(),
+                                      d_data_term->data(),
+                                      d_gradient_term->data(),
+                                      d_u->data(),
+                                      d_u0->data(),
+                                      lambda,
+                                      sigma_primal,
+                                      sigma_dual_data,
+                                      sigma_dual_reg,
+                                      i);
+    }
 
 }
 void TVL1DepthEstimation::updatePrimalData(const float lambda, const float sigma_primal, const float sigma_dual_data, const float sigma_dual_reg)
@@ -287,7 +264,8 @@ void TVL1DepthEstimation::updatePrimalData(const float lambda, const float sigma
                                   sigma_dual_data,
                                   sigma_dual_reg,
                                   _nimages,
-                                  d_data_term->slice_stride());
+                                  d_data_term->slice_stride(),
+                                  d_sortedindices->data());
 
 
 }
@@ -307,43 +285,8 @@ void TVL1DepthEstimation::ObtainImageFromTexture(const int which_image)
     cout << fileName << endl;
     iu::imsave(d_temp_storage,fileName);
 
-//    int width = getImgWidth();
-//    int height = getImgHeight();
-
-//    iu::ImageCpu_32f_C1 *h_temp_storage = new iu::ImageCpu_32f_C1(IuSize(width,height)) ;
-//    iu::copy(d_temp_storage,h_temp_storage);
-//    cout << "copied" << endl;
-
-//    CVD::Image<float>cur_img = CVD::Image<float>(CVD::ImageRef(width,height));
-//    memcpy(cur_img.data(),h_temp_storage->data(),width*height);
-
-//    char fileName[30];
-//    sprintf(fileName,"img_%03d.png",which_image);
-//    cout << fileName << endl;
-//    CVD::img_save(cur_img, fileName);
 
 }
-
-//void TVL1DepthEstimation::updatePrimalData(const float lambda, const float sigma_primal, const float sigma_dual_data, const float sigma_dual_reg)
-//{
-//    doOneIterationUpdatePrimal(   d_u->data(),
-//                                  d_u0->data(),
-//                                  d_u->stride(),
-//                                  d_u->width(),
-//                                  d_u->height(),
-//                                  d_data_term->data(),
-//                                  d_gradient_term->data(),
-//                                  d_px->data(),
-//                                  d_py->data(),
-//                                  d_q->data(),
-//                                  lambda,
-//                                  sigma_primal,
-//                                  sigma_dual_data,
-//                                  sigma_dual_reg
-//                                 );
-
-
-//}
 
 
 void TVL1DepthEstimation::computeImageGradient_wrt_depth(const float2 fl,
@@ -352,15 +295,19 @@ void TVL1DepthEstimation::computeImageGradient_wrt_depth(const float2 fl,
                                                          TooN::Matrix<3,1> t_lr_,
                                                          bool disparity,
                                                          float dmin,
-                                                         float dmax)
+                                                         float dmax,
+                                                         int which_image)
 {
 
 
 
-    for(int i = 0 ; i < _nimages - 1 ; i++)
-    {
+       BindDepthTexture( d_dataimages.at(which_image)->data(),
+                         d_dataimages.at(which_image)->width(),
+                         d_dataimages.at(which_image)->height(),
+                         d_dataimages.at(which_image)->stride());
 
-    doComputeImageGradient_wrt_depth(fl,
+
+       doComputeImageGradient_wrt_depth(fl,
                                      pp,
                                      d_u->data(),
                                      d_u0->data(),
@@ -375,9 +322,28 @@ void TVL1DepthEstimation::computeImageGradient_wrt_depth(const float2 fl,
                                      disparity,
                                      dmin,
                                      dmax,
-                                     i,
+                                     which_image,
                                      d_data_term->slice_stride());
-    }
+
+
+}
+
+void TVL1DepthEstimation::sortDataterms()
+{
+
+    doDatatermSorting( d_data_term->data(),
+                       d_gradient_term->data(),
+                       d_data_term->slice_stride(),
+                       d_data_term->stride(),
+                       d_u0->data(),
+                       d_u0->stride(),
+                       d_sortedindices->data(),
+                       d_sortedindices->slice_stride(),
+                       d_sortedindices->stride(),
+                       getImgWidth(),
+                       getImgHeight(),
+                       _nimages
+                      );
 
 }
 
@@ -399,3 +365,6 @@ void TVL1DepthEstimation::updateWarpedImage ( const float2 fl,
                        disparity);
 
 }
+
+
+

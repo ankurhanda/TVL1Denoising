@@ -20,16 +20,16 @@ public:
     iu::ImageGpu_32f_C1* d_u;
     iu::ImageGpu_32f_C1* d_u0;
 
-//    std::vector< iu::ImageGpu_32f_C1* >  d_data_term;
-//    std::vector< iu::ImageGpu_32f_C1* >  d_gradient_term;
-
     iu::VolumeGpu_32f_C1 *d_data_term;
     iu::VolumeGpu_32f_C1 *d_gradient_term;
 
+    std::vector < iu::ImageGpu_32f_C1* > d_dataimages;
+    std::vector < iu::ImageGpu_32f_C1* > d_dual_data;
+
     iu::ImageGpu_32f_C1* d_cur2ref_warped;
 
-    /// I think we don't need to store it but just for debug purposes!
-    cudaArray *d_volumeArray;
+    iu::VolumeGpu_8u_C1 *d_sortedindices;
+
 
     bool allocated;
 
@@ -46,7 +46,7 @@ public:
     unsigned int getImgHeight(){ return d_ref_image->height();}
     unsigned int getNumImages(){ return _nimages; }
 
-    TVL1DepthEstimation():allocated(false),d_volumeArray(NULL),_nimages(2){};
+    TVL1DepthEstimation():allocated(false),_nimages(2){};
     TVL1DepthEstimation(const std::string& refimgfile, const std::string& curimgfile);
     TVL1DepthEstimation(const std::string& refimgfile, const int nimages);
 
@@ -76,12 +76,13 @@ public:
                        const float sigma_dual_reg);
 
     void computeImageGradient_wrt_depth(const float2 fl,
-                                   const float2 pp,
-                                   TooN::Matrix<3,3> R_lr_,
-                                   TooN::Matrix<3,1> t_lr_,
-                                   bool disparity,
-                                   float dmin,
-                                   float dmax);
+                                        const float2 pp,
+                                        TooN::Matrix<3,3> R_lr_,
+                                        TooN::Matrix<3,1> t_lr_,
+                                        bool disparity,
+                                        float dmin,
+                                        float dmax,
+                                        int which_image);
     void updateWarpedImage(
                             const float2 fl,
                             const float2 pp,
@@ -90,6 +91,8 @@ public:
                             bool disparity);
 
     void allocateMemory(const unsigned int width, const unsigned int heightt);
+
+    void sortDataterms();
 
 
 };

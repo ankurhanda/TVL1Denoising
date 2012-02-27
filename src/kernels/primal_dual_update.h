@@ -46,7 +46,8 @@ void  doOneIterationUpdatePrimal ( float* d_u,
                                  const float sigma_q,
                                  const float sigma_p,
                                  const int _nimages,
-                                 const int slice_stride);
+                                 const int slice_stride,
+                                 unsigned char* d_sortedindices);
 
 void doComputeImageGradient_wrt_depth(const float2 fl,
                                     const float2 pp,
@@ -66,6 +67,43 @@ void doComputeImageGradient_wrt_depth(const float2 fl,
                                     const unsigned int which_image,
                                     const unsigned int slice_stride);
 
+
+
+//doDatatermSorting( d_data_term->data(),
+//                   d_gradient_term->data(),
+//                   d_data_term->slice_stride(),
+//                   d_sortedindices->stride(),
+//                   d_u0->data(),
+//                   d_u0->stride(),
+//                   d_sortedindices->data(),
+//                   d_sortedindices->slice_stride(),
+//                   d_sortedindices->stride()
+//                  );
+void doDatatermSorting(float *d_data_term,
+                       float *d_gradient_term,
+                       unsigned int data_slice_stride,
+                       unsigned int d_data_stride,
+                       float *d_u0,
+                       unsigned int d_u0_stride,
+                       unsigned char *d_sortedindices,
+                       unsigned int d_sortedindices_slice_stride,
+                       unsigned int d_sortedindices_stride,
+                       unsigned int width,
+                       unsigned int height,
+                       const int _nimages
+                       );
+
+//doDatatermSorting( d_data_term->data(),
+//                   d_gradient_term->data(),
+//                   d_data_term->slice_stride(),
+//                   d_data_term->stride(),
+//                   d_u0->data(),
+//                   d_u0->stride(),
+//                   d_sortedindices->data(),
+//                   d_sortedindices->slice_stride(),
+//                   d_sortedindices->stride(),
+//                   _nimages
+//                  );
 
 void doImageWarping(const float2 fl,
                     const float2 pp,
@@ -90,5 +128,7 @@ void BindDataImageStack ( const cudaArray *d_volume,
                           cudaChannelFormatDesc channelDesc);
 
 void obtainImageSlice(const int which_image, float *d_dest_img, const unsigned int stride, const unsigned int width, const unsigned int height);
+
+
 
 #endif

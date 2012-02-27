@@ -41,7 +41,8 @@ __global__ void kernel_doOneIterationUpdatePrimal ( float* d_u,
                                                    const float sigma_q,
                                                    const float sigma_p,
                                                    const int _nimages,
-                                                   const int  slice_stride)
+                                                   const int  slice_stride,
+                                                   unsigned char *d_sortedindices)
 {
 
     /// Update Equations should be
@@ -84,119 +85,116 @@ __global__ void kernel_doOneIterationUpdatePrimal ( float* d_u,
 
 
     /// Have a confusion of _nimages
+    int length = _nimages-1;
 
-//    float u0  = d_u0[y*stride+x];
-//    float u_  = d_u[y*stride+x] + sigma_u*(div_p);
-//    float ai, bi, ti;
+    float u0  = d_u0[y*stride+x];
+    float u_  = d_u[y*stride+x] + sigma_u*(div_p);
+    float sum_all_grads = 0.;
 
-//    float *ti_vals = new float [_nimages-1];
-//    unsigned int *ti_indices = new unsigned int [_nimages-1];
-//    float sum_all_grads = 0;
-
-//    for(int i = 0 ; i < _nimages -1 ; i++)
-//    {
-
-//        bi = d_data_term[y*stride+x+i*slice_stride] - u0*d_gradient_term[y*stride+x+i*slice_stride];
-//        ai = d_gradient_term[y*stride+x+i*slice_stride];
-//        ti = -bi/(ai+1E-6);
-
-//        ti_vals[i]=ti;
-//        ti_indices[i]=i;
-
-//        sum_all_grads += ai;
-//    }
-
-    /// Sort them.
-//    thrust::stable_sort_by_key(ti_vals,ti_vals+_nimages-1,ti_indices);
-
-
+    /// Sum all the gradients
+    for(int i = 0 ; i < _nimages - 1 ; i++)
+    {
+        sum_all_grads += d_gradient_term[y*stride+x+i*slice_stride];
+    }
 
     /// Find if this lies in between any of these consecutive ti s.
-//    float sum_grads_less_k = 0;
-//    float sum_grads_great_k = sum_all_grads;
-//    int index = 0;
-//    bool found_min = false;
-//    float rho=0;
+    float sum_grads_lt_k = 0;
+    float sum_grads_gt_k = sum_all_grads;
+    int index = 0, prev_index=0;
+    bool found_min = false;
+    float rho=0;
 
-//    for(int i = 1 ; i <_nimages - 1 ; i++)
-//    {
-//        index = ti_indices[i];
+    for(int i = 1 ; i < length ; i++)
+    {
+        prev_index = d_sortedindices[y*stride+x+(i-1)*slice_stride];
+        index = d_sortedindices[y*stride+x+i*slice_stride];
 
-//        rho = d_data_term[y*stride+x+index*slice_stride] + (u_-u0)*d_gradient_term[y*stride+x+index*slice_stride];
+        rho = d_data_term[y*stride+x+index*slice_stride] + (u_-u0)*d_gradient_term[y*stride+x+index*slice_stride];
 
-//        sum_grads_less_k  += d_gradient_term[y*stride+x+index*slice_stride];
-//        sum_grads_great_k -= sum_grads_less_k;
+        sum_grads_lt_k  += d_gradient_term[y*stride+x+index*slice_stride];
+        sum_grads_gt_k  -= d_gradient_term[y*stride+x+index*slice_stride];
 
-//        if (  rho < sigma_u*lambda*(sum_grads_less_k- sum_grads_great_k) && rho > d_gradient_term[y*stride+x+index*slice_stride]*(ti_vals[i-1] - ti_vals[i]) )
-//        {
-//            d_u[y*stride] = u_ + sigma_u*lambda*(sum_grads_less_k - sum_grads_great_k);
-//            found_min = true;
-//            return;
-//        }
-//    }
+        float bi_prev = d_data_term[y*stride+x+prev_index*slice_stride] + (-u0)*d_gradient_term[y*stride+x+prev_index*slice_stride];
+        float ai_prev = d_gradient_term[y*stride+x+index*slice_stride];
 
-//    if ( !found_min )
-//    {
-//        /// Bound check at 0
-//        index = ti_indices[0];
-//        rho = d_data_term[y*stride+index*slice_stride] + (u_-u0)*d_gradient_term[y*stride+x+index*slice_stride];
-//        if ( rho < -sigma_u*lambda*sum_all_grads)
-//        {
-//            d_u[y*stride+x]  = u_ +  sigma_u*lambda*sum_all_grads;
-//            return;
-//        }
+        float bi_cur = d_data_term[y*stride+x+index*slice_stride] + (-u0)*d_gradient_term[y*stride+x+index*slice_stride];
+        float ai_cur = d_gradient_term[y*stride+x+index*slice_stride];
 
-//        /// Bound check at last
-//        index = ti_indices[_nimages-2];
-//        rho = d_data_term[y*stride+index*slice_stride] + (u_-u0)*d_gradient_term[y*stride+x+index*slice_stride];
-//        if ( rho > sigma_u*lambda*sum_all_grads)
-//        {
-//            d_u[y*stride+x]  = u_ -  sigma_u*lambda*sum_all_grads;
-//            return;
-//        }
+        float ti_prev  = -bi_prev/(ai_prev+1E-6);
+        float ti_cur   = -bi_cur/(ai_cur+1E-6);
+
+        if (  rho < sigma_u*lambda*(sum_grads_lt_k- sum_grads_gt_k) &&
+              rho > d_gradient_term[y*stride+x+index*slice_stride]*(ti_prev - ti_cur) + sigma_u*lambda*(sum_grads_lt_k- sum_grads_gt_k) )
+        {
+            d_u[y*stride] = u_ + sigma_u*lambda*(-sum_grads_lt_k + sum_grads_gt_k);
+            found_min = true;
+            return;
+        }
+    }
+
+    if ( !found_min )
+    {
+        /// Bound check at 0
+        index = d_sortedindices[y*stride+x+0];
+        rho = d_data_term[y*stride+index*slice_stride] + (u_-u0)*d_gradient_term[y*stride+x+index*slice_stride];
+        if ( rho < -sigma_u*lambda*sum_all_grads)
+        {
+            d_u[y*stride+x]  = u_ +  sigma_u*lambda*sum_all_grads;
+            return;
+        }
+
+        /// Bound check at last
+        index = d_sortedindices[y*stride+x+(length-1)*slice_stride];
+
+        rho = d_data_term[y*stride+index*slice_stride] + (u_-u0)*d_gradient_term[y*stride+x+index*slice_stride];
+        if ( rho > sigma_u*lambda*sum_all_grads)
+        {
+            d_u[y*stride+x]  = u_ -  sigma_u*lambda*sum_all_grads;
+            return;
+        }
 
 
-//        /// Check for minima among the ti points
-//        float cur_min_cost = 1E20;
-//        int min_di_index = 0;
+        /// Check for minima among the ti points
+        float cur_min_cost = 1E20;
+        int min_di_index = 0;
 
-//        for(int i = 0 ; i < _nimages-1 ; i++)
-//        {
-//            float di = ti_vals[i];
-//            float sum_rhos_at_di = 0;
+        for(int i = 0 ; i < length ; i++)
+        {
+            float bi = (d_data_term[y*stride+index*slice_stride] + (-u0)*d_gradient_term[y*stride+x+index*slice_stride]);
+            float ai = d_gradient_term[y*stride+x+index*slice_stride];
+            float di = -bi/(ai+1E-6);
 
-//            for(int j = 0 ; j < _nimages -1 ; j++)
-//            {
-//                bi = d_data_term[y*stride+x+j*slice_stride] - u0*d_gradient_term[y*stride+x+j*slice_stride];
-//                ai = d_gradient_term[y*stride+x+j*slice_stride];
+            float sum_rhos_at_di = 0;
 
-//                sum_rhos_at_di += fabs(ai*di-bi);
-//            }
+            for(int j = 0 ; j < length ; j++)
+            {
+                bi = d_data_term[y*stride+x+j*slice_stride] - u0*d_gradient_term[y*stride+x+j*slice_stride];
+                ai = d_gradient_term[y*stride+x+j*slice_stride];
 
-//           float min_cost = -div_p * di + lambda * sum_rhos_at_di;
+                sum_rhos_at_di += fabs(ai*di-bi);
+            }
 
-//           if ( min_cost < cur_min_cost)
-//           {
-//               cur_min_cost = min_cost;
-//               min_di_index = i;
-//           }
+           float min_cost = -div_p * di + lambda * sum_rhos_at_di;
 
-//        }
+           if ( min_cost < cur_min_cost)
+           {
+               cur_min_cost = min_cost;
+               min_di_index = i;
+           }
 
-//        float rho_u = d_data_term[y*stride+x+min_di_index*slice_stride] + (u_- u0)*d_gradient_term[y*stride+x+min_di_index*slice_stride];
-//        float gradient_at_u = d_gradient_term[y*stride+x+min_di_index*slice_stride];
+        }
 
-//        d_u[y*stride+x] = u_ - rho_u/(gradient_at_u+1E-6);
+        float rho_u = d_data_term[y*stride+x+min_di_index*slice_stride] + (u_- u0)*d_gradient_term[y*stride+x+min_di_index*slice_stride];
+        float gradient_at_u = d_gradient_term[y*stride+x+min_di_index*slice_stride];
 
-//        return;
+        d_u[y*stride+x] = u_ - rho_u/(gradient_at_u+1E-6);
 
-//    }
+        return;
+
+    }
 
 //        d_u[y*stride+x] = fmaxf(1E-6,fminf(1.0f,d_u[y*stride+x]));
 //        float diff_term = d_q[y*stride+x]*d_gradient_term[y*stride+x] - div_p;
-
-
-
 
 }
 
@@ -215,7 +213,8 @@ void  doOneIterationUpdatePrimal ( float* d_u,
                                  const float sigma_q,
                                  const float sigma_p,
                                  const int _nimages,
-                                 const int slice_stride)
+                                 const int slice_stride,
+                                 unsigned char* d_sortedindices)
 {
 
     dim3 block(boost::math::gcd<unsigned>(width,32), boost::math::gcd<unsigned>(height,32), 1);
@@ -236,7 +235,8 @@ void  doOneIterationUpdatePrimal ( float* d_u,
                                                        sigma_q,
                                                        sigma_p,
                                                       _nimages,
-                                                      slice_stride);
+                                                      slice_stride,
+                                                      d_sortedindices);
 
 
 }
@@ -460,7 +460,7 @@ __global__ void kernel_computeImageGradient_wrt_depth(const float2 fl,
 
         cumat<3,1> p3d_r       = {uvnorm.x*zLinearised, uvnorm.y*zLinearised, zLinearised};
 
-        /// Are we really sure of this?
+
         cumat<3,1> p3d_dest  =  R*p3d_r + t;
 
         p3d_dest(2,0) = fmax(0.0f,fmin(1.0f,p3d_dest(2,0)));
@@ -480,18 +480,15 @@ __global__ void kernel_computeImageGradient_wrt_depth(const float2 fl,
         float Ir =  d_ref_img[y*stride+x];
 
 
-//        float Id =  tex2D(TexImgCur,  p2D_live.x+0.5f,p2D_live.y+0.5f);
-//        float Idx = tex2D(TexImgCur,  p2D_live.x+0.5f+1.0f,p2D_live.y+0.5f);
-
-        float Id =  tex3D(TexImgStack, p2D_live.x+0.5f,     p2D_live.y+0.5f,which_image);
-        float Idx = tex3D(TexImgStack, p2D_live.x+0.5f+1.0f,p2D_live.y+0.5f,which_image);
+        float Id =  tex2D(TexImgCur,  p2D_live.x+0.5f,p2D_live.y+0.5f);
+        float Idx = tex2D(TexImgCur,  p2D_live.x+0.5f+1.0f,p2D_live.y+0.5f);
 
 
 //        if ( p2D_live.x+0.5+1 > (float) width)
 //            Idx = Id;
 
-//        float Idy = tex2D(TexImgCur,  p2D_live.x+0.5f,p2D_live.y+0.5f+1.0f);
-        float Idy = tex3D(TexImgStack,  p2D_live.x+0.5f,p2D_live.y+0.5f+1.0f, which_image);
+        float Idy = tex2D(TexImgCur,  p2D_live.x+0.5f,p2D_live.y+0.5f+1.0f);
+
 
 //        if ( p2D_live.y+0.5+1 > (float) height)
 //            Idy = Id;
@@ -709,3 +706,130 @@ void obtainImageSlice(const int which_image, float *d_dest_img, const unsigned i
 
 
 
+__global__ void kernel_sortDataterms(float *d_data_term,
+                                     float *d_gradient_term,
+                                     unsigned int data_slice_stride,
+                                     unsigned int d_data_stride,
+                                     float *d_u0,
+                                     unsigned int d_u0_stride,
+                                     unsigned char *d_sortedindices,
+                                     unsigned int d_sortedindices_slice_stride,
+                                     unsigned int d_sortedindices_stride,
+                                     const int _nimages)
+{
+
+    unsigned int x = blockIdx.x*blockDim.x + threadIdx.x;
+    unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
+
+    int length = _nimages-1;
+    float u0 = d_u0[y*d_u0_stride+x];
+
+    float *ti_vals = (float*)malloc(sizeof(float)*length);
+    unsigned char *ind = (unsigned char*)malloc(sizeof(unsigned char)*length);
+    float bi, ai;
+
+    /// Save the tis
+    for(int i = 0 ; i < length ; i++ )
+    {
+        bi = d_data_term[y*d_data_stride+x+i*data_slice_stride] - u0*d_gradient_term[y*d_data_stride+x+i*data_slice_stride];
+        ai = d_gradient_term[y*d_data_stride+x+i*data_slice_stride];
+//        ti_vals[i] = -bi/(ai+1E-6);
+        ind[i] = i;
+    }
+
+//    if (x == 120 && y == 140)
+//    {
+//        printf("Before\n");
+//        for(int i = 0 ; i < length ; i++ )
+//        {
+//            printf("%f ", ti[i]);
+//        }
+//        printf("\n");
+
+////        printf("Before\n");
+////        for(int i = 0 ; i < length ; i++ )
+////        {
+////            printf("%f ", ind[i]);
+////        }
+////        printf("\n");
+//    }
+
+    /// Sort the indices
+//    for(int i = 0 ; i < length; i++)
+//    {
+//        for(int j = 1 ; j < length - i ; j++)
+//        {
+//            if ( ti[j-1] > ti[j] )
+//            {
+//                /// Swap values
+//                float temp = ti[j-1];
+//                ti[j-1] = ti[j];
+//                ti[j] = temp;
+
+//                /// Swap indices
+//                unsigned char temp_ind = ind[j-1];
+//                ind[j-1] = ind[j];
+//                ind[j] = temp_ind;
+//            }
+//        }
+//    }
+
+//    if (x == 120 && y == 140)
+//    {
+//        printf("After\n");
+//        for(int i = 0 ; i < length ; i++ )
+//        {
+//            printf("%f ", ti[i]);
+//        }
+//        printf("\n");
+
+////        printf("After\n");
+////        for(int i = 0 ; i < length ; i++ )
+////        {
+////            printf("%d ", ind[i]);
+////        }
+////        printf("\n");
+//    }
+
+    /// Put them in array
+    for(int i = 0; i < length ; i++)
+    {
+        d_sortedindices[y*d_sortedindices_stride + x + i*d_sortedindices_slice_stride] = 0;//(unsigned char)ind[i];
+    }
+
+    free(ti);
+    free(ind);
+
+
+
+}
+
+
+void doDatatermSorting(float *d_data_term,
+                       float *d_gradient_term,
+                       unsigned int data_slice_stride,
+                       unsigned int d_data_stride,
+                       float *d_u0,
+                       unsigned int d_u0_stride,
+                       unsigned char *d_sortedindices,
+                       unsigned int d_sortedindices_slice_stride,
+                       unsigned int d_sortedindices_stride,
+                       unsigned int width,
+                       unsigned int height,
+                       const int _nimages
+                       )
+{
+    dim3 block(boost::math::gcd<unsigned>(width,32), boost::math::gcd<unsigned>(height,32), 1);
+    dim3 grid( width / block.x, height / block.y);
+
+    kernel_sortDataterms<<<grid,block>>>(d_data_term,
+                                         d_gradient_term,
+                                         data_slice_stride,
+                                         d_data_stride,
+                                         d_u0,
+                                         d_u0_stride,
+                                         d_sortedindices,
+                                         d_sortedindices_slice_stride,
+                                         d_sortedindices_stride,
+                                         _nimages);
+}
