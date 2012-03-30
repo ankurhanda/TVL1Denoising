@@ -31,6 +31,17 @@ TVL1DepthEstimation::TVL1DepthEstimation(const std::string& refimgfile, const st
 
 }
 
+TVL1DepthEstimation::TVL1DepthEstimation(const std::string& refimgfile, const int nimages)
+{
+    _nimages = nimages;
+    ref_file_name = refimgfile;
+    if(!allocated)
+        allocateMemory(width,height);
+    InitialiseVariables(0.5);
+
+}
+
+
 void TVL1DepthEstimation::allocateMemory(const unsigned int width, const unsigned int height)
 {
 
@@ -61,6 +72,7 @@ void TVL1DepthEstimation::allocateMemory(const unsigned int width, const unsigne
     {
         d_data_derivs.push_back( new iu::ImageGpu_32f_C4 (width,height); );
         d_dual_data.push_back(new iu::ImageGpu_32f_C1(width,height));
+        d_data_images.push_back(new iu::ImageGpu_32f_C1(width,height));
     }
     datasum = new iu::ImageGpu_32f_C1(width,height);
 #endif
@@ -100,11 +112,29 @@ void TVL1DepthEstimation::InitialiseVariables(float initial_val=0.5)
 
     }
 
+#ifdef RICHARD_IMPLEMENTATION
+
+    assert(_nimages>1);
+    for (int i = 1 ; i <= _nimages-1 ; i++ )
+    {
+        std::string curfilename(ref_file_name.begin(), ref_file_name.end()-8);
+        char fileno[5];
+        int ref_file_num = atoi(ref_file_name.substr(ref_file_name.length()-8,4).c_str());
+        sprintf(fileno,"%04d",ref_file_num+i);
+
+        curfilename = curfilename + std::string(fileno) + ".png";
+
+        d_data_images.at(i-1) = iu::imread_cu32f_C1(curfilename);
+
+    }
+
+#else
     /// Bind the texture
     BindDepthTexture(d_cur_image->data(),
                      d_cur_image->width(),
                      d_cur_image->height(),
                      d_cur_image->stride());
+#endif
 
 }
 
@@ -152,6 +182,7 @@ void TVL1DepthEstimation::updatedualData(const float lambda, const float sigma_p
 
     for(int i = 0 ; i < _nimages-1;i++)
     {
+
          updateDualData<<<grid,blocks>>>(d_u->data(),
                         d_data_derivs.at(i)->data(),
                         d_dual_data.at(i)->data(),
@@ -247,10 +278,10 @@ void TVL1DepthEstimation::computeImageGradient_wrt_depth(const float2 fl,
     cumat<3,3> R = cumat_from<3,3,float>(R_lr_);
     cumat<3,1> t = cumat_from<3,1,float>(t_lr_);
 
-    BindDepthTexture(d_data_images.at(i)->data(),
-                     d_data_images.at(i)->width(),
-                     d_data_images.at(i)->height(),
-                     d_data_images.at(i)->stride());
+    BindDepthTexture(d_data_images.at(which_image)->data(),
+                     d_data_images.at(which_image)->width(),
+                     d_data_images.at(which_image)->height(),
+                     d_data_images.at(which_image)->stride());
 
                      cu_compute_dI_dz<<<grid,block>>>(d_data_derivs.at(which_image)->data(),
                                                       R,
@@ -259,6 +290,7 @@ void TVL1DepthEstimation::computeImageGradient_wrt_depth(const float2 fl,
                                                       fl,
                                                       d_data_derivs.at(which_image)->stride(),
                                                       d_ref_image->data(),
+                                                      d_u0->data(),
                                                       d_ref_image->stride());
 
 

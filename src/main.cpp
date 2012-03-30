@@ -408,14 +408,25 @@ int main( int /*argc*/, char* argv[] )
 
   float2 fl, pp;
 
-  TooN::Matrix<3,3> R_lr_ = Zeros(3);
-  TooN::Matrix<3,1> t_lr_ = Zeros(3);
+//  TooN::Matrix<3,3> R_lr_ = Zeros(3);
+//  TooN::Matrix<3,1> t_lr_ = Zeros(3);
 
   iu::ImageCpu_32f_C1 *depth_vals = new iu::ImageCpu_32f_C1(IuSize(width,height));
+  iu::ImageGpu_32f_C1 *d_depthvals = new iu::ImageGpu_32f_C1(IuSize(width,height));
 
-  iu::ImageGpu_32f_C1 *d_depthvals = new iu::ImageGpu_32f_C1(IuSize(width,height));;
+//  get_camera_and_RT(fl,pp,R_lr_,t_lr_,width, height, use_povray, depth_vals->data(), ref_no, live_no);
 
-  get_camera_and_RT(fl,pp,R_lr_,t_lr_,width, height, use_povray, depth_vals->data(), ref_no, live_no);
+  vector < Matrix<3,3> > R_lr_vec;
+  vector < Matrix<3,1> > t_lr_vec;
+  for(int i = 1 ; i <= nimages-1 ; i++)
+  {
+      int curimgno = refimgno+i;
+      get_camera_and_RT(fl,pp,R_lr_,t_lr_,width, height, use_povray, depth_vals, refimgno,curimgno);
+      R_lr_vec.push_back(R_lr_);
+      t_lr_vec.push_back(t_lr_);
+  }
+
+  cout << "Width = "<< width << ", Height = " << height << endl;
 
   iu::copy(depth_vals,d_depthvals);
 
@@ -493,17 +504,22 @@ int main( int /*argc*/, char* argv[] )
         iterations = 0;
         Stereo2D->InitialiseVariables(u0initval);
 
+
     }
 
     if ( warps == 0 && iterations == 0 )
     {
-        Stereo2D->computeImageGradient_wrt_depth(fl,
-                                                pp,
-                                                R_lr_,
-                                                t_lr_,
-                                                compute_disparity,
-                                                dmin,
-                                                dmax);
+        for(int i = 0 ; i < _nimages - 1 ; i++)
+        {
+            Stereo2D->computeImageGradient_wrt_depth(fl,
+                                                     pp,
+                                                     R_lr_,
+                                                     t_lr_,
+                                                     compute_disparity,
+                                                     dmin,
+                                                     dmax,
+                                                     i);
+        }
 
     }
 
@@ -512,13 +528,18 @@ int main( int /*argc*/, char* argv[] )
         iterations = 0;
         cout << "Warping going on!"<<endl;
         Stereo2D->doOneWarp();
-        Stereo2D->computeImageGradient_wrt_depth(fl,
-                                                pp,
-                                                R_lr_,
-                                                t_lr_,
-                                                compute_disparity,
-                                                dmin,
-                                                dmax);
+
+        for(int i = 0 ; i < _nimages-1;i++)
+        {
+            Stereo2D->computeImageGradient_wrt_depth(fl,
+                                                     pp,
+                                                     R_lr_,
+                                                     t_lr_,
+                                                     compute_disparity,
+                                                     dmin,
+                                                     dmax,
+                                                     i);
+        }
 
         warps++;
     }
@@ -531,10 +552,10 @@ int main( int /*argc*/, char* argv[] )
                                sigma_q,
                                sigma_p);
 
-//         Stereo2D->updatedualData(lambda,
-//                                tau,
-//                                sigma_q,
-//                                sigma_p);
+         Stereo2D->updatedualData(lambda,
+                                tau,
+                                sigma_q,
+                                sigma_p);
 
          Stereo2D->updatePrimalData(lambda,
                                 tau,
@@ -554,50 +575,50 @@ int main( int /*argc*/, char* argv[] )
          iu::copy(Stereo2D->d_u,&h_udisp);
 //         iu::copy(Stereo2D->d_gradient_term,&h_pxdisp);
 
-            float max_u =-9999.0f;
-            float min_u = 9999.0f;
-            float max_p = max_u;
-            float min_p = min_u;
-            int max_row, min_row;
-            int max_col, min_col;
+//            float max_u =-9999.0f;
+//            float min_u = 9999.0f;
+//            float max_p = max_u;
+//            float min_p = min_u;
+//            int max_row, min_row;
+//            int max_col, min_col;
 
-            for (int i = 0 ; i < height; i++)
-            {
-                for(int j = 0 ; j < width ; j++ )
-                {
-//                    int index = i*width+j;
+//            for (int i = 0 ; i < height; i++)
+//            {
+//                for(int j = 0 ; j < width ; j++ )
+//                {
+////                    int index = i*width+j;
 
-                    if ( h_udisp.getPixel(j,i) > max_u)
-                    {
-                        max_u = h_udisp.getPixel(j,i);
-                        max_col = j;
-                        max_row = i;
-                    }
-                    if ( h_udisp.getPixel(j,i) < min_u)
-                    {
-                        min_u = h_udisp.getPixel(j,i);
-                        min_col = j;
-                        min_row = i;
-                    }
+//                    if ( h_udisp.getPixel(j,i) > max_u)
+//                    {
+//                        max_u = h_udisp.getPixel(j,i);
+//                        max_col = j;
+//                        max_row = i;
+//                    }
+//                    if ( h_udisp.getPixel(j,i) < min_u)
+//                    {
+//                        min_u = h_udisp.getPixel(j,i);
+//                        min_col = j;
+//                        min_row = i;
+//                    }
 
-                }
-            }
+//                }
+//            }
 
-            //iu::copy(h_udisp,)
-            float *h_udisp_ptr = h_udisp.data();
-            for(int i = 0 ; i < height; i++)
-            {
-                for(int j = 0 ; j < width; j++)
-                {
-                    float val = *(h_udisp_ptr+(i*width+j));
-//                    cout << "before = " << val << endl;
-                    *(h_udisp_ptr+(i*width+j)) = val;//(val - min_u)/(max_u - min_u);
-//                    cout << " h_udisp.getPixel(j,i)" << h_udisp.getPixel(j,i) << endl;
-                }
-            }
+//            //iu::copy(h_udisp,)
+//            float *h_udisp_ptr = h_udisp.data();
+//            for(int i = 0 ; i < height; i++)
+//            {
+//                for(int j = 0 ; j < width; j++)
+//                {
+//                    float val = *(h_udisp_ptr+(i*width+j));
+////                    cout << "before = " << val << endl;
+//                    *(h_udisp_ptr+(i*width+j)) = val;//(val - min_u)/(max_u - min_u);
+////                    cout << " h_udisp.getPixel(j,i)" << h_udisp.getPixel(j,i) << endl;
+//                }
+//            }
 
             iu::copy(&h_udisp,&u_disp);
-            cout << "max_u =" << max_u << ", min_u= "<< min_u << endl;
+//            cout << "max_u =" << max_u << ", min_u= "<< min_u << endl;
 //            cout << "max_p =" << max_p << ", min_p= "<< min_p << endl;
     }
     when2show++;

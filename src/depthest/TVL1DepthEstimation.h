@@ -32,11 +32,13 @@ public:
 #ifdef RICHARD_IMPLEMENTATION
     std::vector<iu::ImageGpu_32f_C4 *> d_data_derivs;
     std::vector<iu::ImageGpu_32f_C1 *> d_dual_data;
+    std::vector<iu::ImageGpu_32f_C1 *> d_data_images;
     iu::ImageGpu_32f_C1 *datasum;
 #endif
 
     bool allocated;
     int _nimages;
+    std::string ref_file_name;
 
 public:
 
