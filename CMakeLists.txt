@@ -19,6 +19,7 @@ INCLUDE(SetPlatformVars)
 ADD_DEFINITIONS( "-O3" )
 
 
+
 #SET(BUILD_SHARED_LIBS TRUE)
 #SET(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/FindCUDA/CMake/cuda" ${CMAKE_MODULE_PATH})
 #SET(CUDA_ATTACH_VS_BUILD_RULE_TO_CUDA_FILE ON)
@@ -48,8 +49,8 @@ SET(
   SOURCES
   ./src/kernels/tvl1_denoising.cu
   ./src/kernels/disparity1D.cu
-  ./src/kernels/Strumdepthestimation.cu
-  ./src/kernels/Strumdepthestimation.h
+ # ./src/kernels/Strumdepthestimation.cu
+ # ./src/kernels/Strumdepthestimation.h
   ./src/kernels/primal_dual_update.h
    ./src/kernels/primal_dual_update.cu
   ./src/kernels/cumath.h
@@ -64,7 +65,7 @@ FOREACH(class ${CLASSES})
 ENDFOREACH(class)
 
 
-#set( CMAKE_VERBOSE_MAKEFILE on )
+set( CMAKE_VERBOSE_MAKEFILE on )
 
 
 CUDA_INCLUDE_DIRECTORIES(
@@ -99,6 +100,8 @@ LINK_DIRECTORIES(
 
 )
 
+#message ("CUDA LIB FILES PATH: " ${CUDA_SDK_ROOT_DIR}/lib )
+
 
 LINK_LIBRARIES(
   ${LIBRARY_NAME}
@@ -111,7 +114,7 @@ LINK_LIBRARIES(
   ${CMAKE_THREAD_LIBS_INIT}
   ${FREEGLUT_LIBRARY}
   ${MinimalImgUtilities_LIBRARY}
-  libcutil_x86_64.a
+  #libcutil_x86_64.a
    -lGVars3
 )
 

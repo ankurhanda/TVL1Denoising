@@ -255,6 +255,10 @@ void get_camera_and_RT(float2& fl, float2& pp, TooN::Matrix<3,3>& R_lr_,
                0,  -480.0000,  239.5000,
                0,         0,    1.0000};
 
+//        float KMat[3][3]=  {3072.0,         0,    319.5,
+//                     0,   -3072.0,    239.5,
+//                     0, 0,1};
+
         TooN::Matrix<3> K = Identity(3);
 
         K(0,0) = KMat[0][0];
@@ -385,6 +389,9 @@ int main( int /*argc*/, char* argv[] )
   bool compute_disparity = false;
 
   TVL1DepthEstimation *Stereo2D;
+
+//  int ref_no = 34;//453;
+//  int live_no = 35;//454;
 
   int ref_no = 453;
   int live_no = 454;

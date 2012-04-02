@@ -54,28 +54,84 @@ __global__ void kernel_doOneIterationUpdatePrimal ( float* d_u,
 
 //    float u_update = d_u[y*stride+x] + sigma_u*div_p - sigma_u*lambda*d_q[y*stride+x]*d_gradient_term[y*stride+x];
 
-//    d_u[y*stride+x] = u_update;
+//    //d_u[y*stride+x] = u_update;
 
-    float grad_sqr = d_gradient_term[y*stride+x]*d_gradient_term[y*stride+x];
+//    d_u[y*stride+x] = fmaxf(0.0f,fminf(1.0f,u_update));
+
+
+//    float grad_sqr = d_gradient_term[y*stride+x]*d_gradient_term[y*stride+x];
+
+//    float u_ = (d_u[y*stride+x] + sigma_u*(div_p));
+
+//    float u0 = d_u0[y*stride+x];
+
+//    float rho = d_data_term[y*stride+x] + (u_-u0)*d_gradient_term[y*stride+x];
+
+//    if ( rho < -sigma_u*lambda*grad_sqr)
+
+//        d_u[y*stride+x] =  u_ + sigma_u*lambda*d_gradient_term[y*stride+x];
+
+//    else if( rho > sigma_u*lambda*grad_sqr)
+
+//        d_u[y*stride+x] =  u_ - sigma_u*lambda*d_gradient_term[y*stride+x];
+
+//    else if ( fabs(rho) <= sigma_u*lambda*grad_sqr)
+//        d_u[y*stride+x] =  u_ - rho/(d_gradient_term[y*stride+x]+10E-6);
+
+
+    float grad = 0;//d_gradient_term[y*stride+x];
+
+
+    float a_b  = 0;//d_data_term[y*stride+x];
+
+    int patch_hf_width = 3;
+
+    int count = 0;
+
+    for(int i = -patch_hf_width ; i <= patch_hf_width ; i++ )
+    {
+        for(int j = -patch_hf_width ; j <= patch_hf_width ; j++ )
+        {
+            if ( x+i >= 0 && x+i<= width && y+j >=0 && y+j <= height)
+            {
+                a_b += d_data_term[(y+j)*stride+x+i];
+                grad += d_gradient_term[(y+j)*stride+(x+i)];
+                count++;
+            }
+        }
+    }
+
+    a_b = a_b / (float)count;
+    grad = grad / (float)count;
+
+    float grad_sqr = grad*grad;
 
     float u_ = (d_u[y*stride+x] + sigma_u*(div_p));
 
     float u0 = d_u0[y*stride+x];
 
-    float rho = d_data_term[y*stride+x] + (u_-u0)*d_gradient_term[y*stride+x];
+    float rho = a_b + (u_-u0)*grad;
 
     if ( rho < -sigma_u*lambda*grad_sqr)
 
-        d_u[y*stride+x] =  u_ + sigma_u*lambda*d_gradient_term[y*stride+x];
+        d_u[y*stride+x] =  u_ + sigma_u*lambda*grad;
 
     else if( rho > sigma_u*lambda*grad_sqr)
 
-        d_u[y*stride+x] =  u_ - sigma_u*lambda*d_gradient_term[y*stride+x];
+        d_u[y*stride+x] =  u_ - sigma_u*lambda*grad;
 
     else if ( fabs(rho) <= sigma_u*lambda*grad_sqr)
-        d_u[y*stride+x] =  u_ - rho/(d_gradient_term[y*stride+x]+10E-6);
+        d_u[y*stride+x] =  u_ - rho/(grad+10E-6);
 
-    //    d_u[y*stride+x] = fmaxf(0.0f,fminf(1.0f,d_u[y*stride+x]));
+
+
+
+
+
+
+
+
+        d_u[y*stride+x] = fmaxf(0.0f,fminf(1.0f,d_u[y*stride+x]));
 
     //    float diff_term = d_q[y*stride+x]*d_gradient_term[y*stride+x] - div_p;
 
