@@ -27,10 +27,10 @@ __global__ void kernel_doOneIterationUpdatePrimal ( float* d_u,
                                                    const unsigned int stride,
                                                    const unsigned int width,
                                                    const unsigned int height,
-//                                                   const float4* d_data_term,
-                                                   const float* d_data_term,
-//                                                   const unsigned int data_stride,
-                                                   const float* d_gradient_term,
+                                                   const float4* d_data_term,
+                                                   const unsigned int data_stride,
+//                                                   const float* d_data_term,
+//                                                   const float* d_gradient_term,
                                                    const float* d_px,
                                                    const float* d_py,
                                                    const float* d_q,
@@ -62,28 +62,28 @@ __global__ void kernel_doOneIterationUpdatePrimal ( float* d_u,
 //    d_u[y*stride+x] = fmaxf(0.0f,fminf(1.0f,u_update));
 
 
-    float grad_sqr = d_gradient_term[y*stride+x]*d_gradient_term[y*stride+x];
+//    float grad_sqr = d_gradient_term[y*stride+x]*d_gradient_term[y*stride+x];
 
-    float u_ = (d_u[y*stride+x] + sigma_u*(div_p));
+//    float u_ = (d_u[y*stride+x] + sigma_u*(div_p));
 
-    float u0 = d_u0[y*stride+x];
+//    float u0 = d_u0[y*stride+x];
 
-    float rho = d_data_term[y*stride+x] + (u_-u0)*d_gradient_term[y*stride+x];
+//    float rho = d_data_term[y*stride+x] + (u_-u0)*d_gradient_term[y*stride+x];
 
-    if ( rho < -sigma_u*lambda*grad_sqr)
+//    if ( rho < -sigma_u*lambda*grad_sqr)
 
-        d_u[y*stride+x] =  u_ + sigma_u*lambda*d_gradient_term[y*stride+x];
+//        d_u[y*stride+x] =  u_ + sigma_u*lambda*d_gradient_term[y*stride+x];
 
-    else if( rho > sigma_u*lambda*grad_sqr)
+//    else if( rho > sigma_u*lambda*grad_sqr)
 
-        d_u[y*stride+x] =  u_ - sigma_u*lambda*d_gradient_term[y*stride+x];
+//        d_u[y*stride+x] =  u_ - sigma_u*lambda*d_gradient_term[y*stride+x];
 
-    else if ( fabs(rho) <= sigma_u*lambda*grad_sqr)
-        d_u[y*stride+x] =  u_ - rho/(d_gradient_term[y*stride+x]+10E-6);
+//    else if ( fabs(rho) <= sigma_u*lambda*grad_sqr)
+//        d_u[y*stride+x] =  u_ - rho/(d_gradient_term[y*stride+x]+10E-6);
 
 
-//    float grad = d_data_term[y*data_stride+x].z;
-//    float a_b  = (d_data_term[y*data_stride+x].x - d_data_term[y*data_stride+x].y);
+    float grad = d_data_term[y*data_stride+x].z;
+    float a_b  = (d_data_term[y*data_stride+x].x - d_data_term[y*data_stride+x].y);
 
 //    int patch_hf_width = 1;
 
@@ -134,24 +134,24 @@ __global__ void kernel_doOneIterationUpdatePrimal ( float* d_u,
 //    a_b = a_b ;// / (float)count;
 //    grad = grad;// / (float)count;
 
-//    float grad_sqr = grad*grad;
+    float grad_sqr = grad*grad;
 
-//    float u_ = (d_u[y*stride+x] + sigma_u*(div_p));
+    float u_ = (d_u[y*stride+x] + sigma_u*(div_p));
 
-//    float u0 = d_u0[y*stride+x];
+    float u0 = d_u0[y*stride+x];
 
-//    float rho = a_b + (u_-u0)*grad;
+    float rho = a_b + (u_-u0)*grad;
 
-//    if ( rho < -sigma_u*lambda*grad_sqr)
+    if ( rho < -sigma_u*lambda*grad_sqr)
 
-//        d_u[y*stride+x] =  u_ + sigma_u*lambda*grad;
+        d_u[y*stride+x] =  u_ + sigma_u*lambda*grad;
 
-//    else if( rho > sigma_u*lambda*grad_sqr)
+    else if( rho > sigma_u*lambda*grad_sqr)
 
-//        d_u[y*stride+x] =  u_ - sigma_u*lambda*grad;
+        d_u[y*stride+x] =  u_ - sigma_u*lambda*grad;
 
-//    else if ( fabs(rho) <= sigma_u*lambda*grad_sqr)
-//        d_u[y*stride+x] =  u_ - rho/(grad+10E-6);
+    else if ( fabs(rho) <= sigma_u*lambda*grad_sqr)
+        d_u[y*stride+x] =  u_ - rho/(grad+10E-6);
 
 
 
@@ -169,10 +169,10 @@ void  doOneIterationUpdatePrimal ( float* d_u,
                                  const unsigned int stride,
                                  const unsigned int width,
                                  const unsigned int height,
-//                                 const float4* d_data_term,
-//                                 const unsigned int data_stride,
-                                 const float* d_data_term,
-                                 const float* d_gradien_term,
+                                 const float4* d_data_term,
+                                 const unsigned int data_stride,
+//                                 const float* d_data_term,
+//                                 const float* d_gradien_term,
                                  const float* d_px,
                                  const float* d_py,
                                  const float* d_q,
@@ -191,8 +191,8 @@ void  doOneIterationUpdatePrimal ( float* d_u,
                                                        width,
                                                        height,
                                                        d_data_term,
-//                                                       data_stride,
-                                                       d_gradien_term,
+                                                       data_stride,
+//                                                       d_gradien_term,
                                                        d_px,                                                      
                                                        d_py,
                                                        d_q,
@@ -365,10 +365,10 @@ __global__ void kernel_computeImageGradient_wrt_depth(const float2 fl,
                                                const float2 pp,
                                                float* d_u,
                                                float* d_u0,
-//                                               float4* d_data_term,
-//                                               const unsigned int data_stride,
-                                                float* d_data_term,
-                                                float* d_gradient_term,
+                                               float4* d_data_term,
+                                               const unsigned int data_stride,
+//                                                float* d_data_term,
+//                                                float* d_gradient_term,
                                                cumat<3,3>R,
                                                cumat<3,1>t,
                                                const unsigned int stride,
@@ -394,17 +394,15 @@ __global__ void kernel_computeImageGradient_wrt_depth(const float2 fl,
         float I1_val     = d_ref_img[y*stride+x];
         float grad_I2_u0 = tex2D(TexImgCur,xinterp1+0.5,(float)y+0.5) - tex2D(TexImgCur,xinterp0+0.5,(float)y+0.5);
 
-//        d_data_term[y*data_stride+x]= make_float4(I2_u0,I1_val,grad_I2_u0,1.0f);
+        d_data_term[y*data_stride+x]= make_float4(I2_u0,I1_val,grad_I2_u0,1.0f);
 
 
 //        float u0 = d_u0[y*stride+x];
 //        float u  = d_u[y*stride+x];
 
-        d_gradient_term[y*stride+x] = grad_I2_u0 +10E-6;
-
-        float data_term_value  = (I2_u0 /*+ (u-u0)*grad_I2_u0 */- I1_val);
-
-        d_data_term[y*stride+x] = data_term_value;
+//        d_gradient_term[y*stride+x] = grad_I2_u0 +10E-6;
+//        float data_term_value  = (I2_u0 /*+ (u-u0)*grad_I2_u0 */- I1_val);
+//        d_data_term[y*stride+x] = data_term_value;
     }
 
     else
@@ -475,9 +473,9 @@ __global__ void kernel_computeImageGradient_wrt_depth(const float2 fl,
 //        Id_minus_Ir = Id-Ir;
 
 
-//        d_data_term[y*data_stride+x]= make_float4(Id,Ir,dIdz,1);
-        d_data_term[y*stride+x] = Id_minus_Ir ;//+ (u-u0)*dIdz;
-        d_gradient_term[y*stride+x] = dIdz;
+        d_data_term[y*data_stride+x]= make_float4(Id,Ir,dIdz,1);
+//        d_data_term[y*stride+x] = Id_minus_Ir ;//+ (u-u0)*dIdz;
+//        d_gradient_term[y*stride+x] = dIdz;
 
     }
 
@@ -488,10 +486,10 @@ void doComputeImageGradient_wrt_depth(const float2 fl,
                                     const float2 pp,
                                     float* d_u,
                                     float* d_u0,
-//                                    float4* d_data_term,
-//                                    const unsigned int data_stride,
-                                      float* d_data_term,
-                                      float* d_gradient_term,
+                                    float4* d_data_term,
+                                    const unsigned int data_stride,
+//                                      float* d_data_term,
+//                                      float* d_gradient_term,
                                     TooN::Matrix<3,3>R_lr_,
                                     TooN::Matrix<3,1>t_lr_,
                                     const unsigned int stride,
@@ -514,8 +512,8 @@ void doComputeImageGradient_wrt_depth(const float2 fl,
                                           d_u,
                                           d_u0,
                                           d_data_term,
-//                                          data_stride,
-                                          d_gradient_term,
+                                          data_stride,
+//                                          d_gradient_term,
                                           R,
                                           t,
                                           stride,

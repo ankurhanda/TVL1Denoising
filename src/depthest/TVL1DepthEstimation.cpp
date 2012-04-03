@@ -59,7 +59,7 @@ void TVL1DepthEstimation::allocateMemory(const unsigned int width, const unsigne
 
     /// data term saved e.g. I(d) + (d-d0)*gradI_d0 - Ir
     /// It will hold Ic(d0), Ir, dIdz, 1
-//    d_data_term_all     =  new iu::ImageGpu_32f_C4(width,height);
+    d_data_term_all     =  new iu::ImageGpu_32f_C4(width,height);
     d_data_term     =  new iu::ImageGpu_32f_C1(width,height);
 
 
@@ -90,8 +90,8 @@ void TVL1DepthEstimation::InitialiseVariables(float initial_val=0.5)
         iu::setValue(0.0, d_q , d_q->roi());
         std::cout <<"stride = " << d_q->stride() << std::endl;
 
-//        iu::setValue(make_float4(0.0,0.0,0.0,0.0), d_data_term_all , d_data_term_all->roi());
-//        std::cout <<"stride = " << d_data_term_all->stride() << std::endl;
+        iu::setValue(make_float4(0.0,0.0,0.0,0.0), d_data_term_all , d_data_term_all->roi());
+        std::cout <<"stride = " << d_data_term_all->stride() << std::endl;
 
         iu::setValue(0.0, d_data_term , d_data_term->roi());
         std::cout <<"stride = " << d_data_term->stride() << std::endl;
@@ -179,8 +179,9 @@ void TVL1DepthEstimation::updatePrimalData(const float lambda, const float sigma
                                   d_u->stride(),
                                   d_u->width(),
                                   d_u->height(),
-                                  d_data_term->data(),
-                                  d_gradient_term->data(),
+                                  d_data_term_all->data(),
+                                  d_data_term_all->stride(),
+//                                  d_gradient_term->data(),
                                   d_px->data(),
                                   d_py->data(),
                                   d_q->data(),
@@ -213,10 +214,10 @@ void TVL1DepthEstimation::computeImageGradient_wrt_depth(const float2 fl,
                                      pp,
                                      d_u->data(),
                                      d_u0->data(),
-//                                     d_data_term_all->data(),
-//                                     d_data_term_all->stride(),
-                                     d_data_term->data(),
-                                     d_gradient_term->data(),
+                                     d_data_term_all->data(),
+                                     d_data_term_all->stride(),
+//                                     d_data_term->data(),
+//                                     d_gradient_term->data(),
                                      R_lr_,
                                      t_lr_,
                                      d_u->stride(),

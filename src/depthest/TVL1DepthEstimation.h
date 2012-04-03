@@ -24,7 +24,7 @@ public:
     iu::ImageGpu_32f_C1* d_data_term;
     iu::ImageGpu_32f_C1* d_gradient_term;
 
-//    iu::ImageGpu_32f_C4 *d_data_term_all;
+    iu::ImageGpu_32f_C4 *d_data_term_all;
 
     iu::ImageGpu_32f_C1* d_cur2ref_warped;
 
