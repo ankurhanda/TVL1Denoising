@@ -120,7 +120,8 @@ LINK_LIBRARIES(
 
 
 # We need shared memory atomics "--maxrregcount=32""--ptxas-options=--opt-level=100"
-SET(CUDA_NVCC_FLAGS  "-arch=sm_20" "--use_fast_math" "-O3"  "--ptxas-options=--verbose" "-keep"  )
+SET(CUDA_NVCC_FLAGS "-G" "-g" "-arch=sm_20" "--use_fast_math" "-O3"  "--ptxas-options=--verbose" )
+# "-maxrregcount=32" )# "keep" ) #  "-Mcuda=maxregcount:32")
 ADD_DEFINITIONS(-DCUDA_BUILD -DBT_USE_DOUBLE_PRECISION)
 
 

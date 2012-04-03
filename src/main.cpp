@@ -24,7 +24,7 @@
 #include <thrust/copy.h>
 #include <cstdlib>
 
-#include "../minimal_imgutilities/src/iucore.h"
+#include "../imageutilities/src/iucore.h"
 
 #include "utils.h"
 #include "./depthest/TVL1DepthEstimation.h"
@@ -385,8 +385,8 @@ int main( int /*argc*/, char* argv[] )
   View& d_panel = pangolin::CreatePanel("ui")
     .SetBounds(1.0, 0.0, 0, 150);
 
-  bool use_povray = true;
-  bool compute_disparity = false;
+  bool use_povray = false;
+  bool compute_disparity = true;
 
   TVL1DepthEstimation *Stereo2D;
 
@@ -460,12 +460,20 @@ int main( int /*argc*/, char* argv[] )
    int when2show = 0;
    int warps = 0;
 
-   iu::ImageCpu_32f_C1 h_udisp(IuSize(width,height));
+   iu::ImageCpu_32f_C1 h_udisp( width,height);
    iu::ImageCpu_32f_C1 h_pxdisp(IuSize(width,height));
+
+   iu::setValue(0,&h_udisp,h_udisp.roi());
+   iu::setValue(0,&h_pxdisp,h_pxdisp.roi());
+
+//   iu::copy(Stereo2D->d_u,&h_udisp);
+
+
 
    iu::ImageGpu_32f_C1 u_disp(IuSize(width,height));
 
 
+   cout << "Everything ready to run" << endl;
 
   while(!pangolin::ShouldQuit())
   {
@@ -481,8 +489,8 @@ int main( int /*argc*/, char* argv[] )
     static Var<int> max_iterations("ui.max_iterations", 300 , 1, 4000);
     static Var<int> max_warps("ui.max_warps", 20 , 0, 400);
 
-    static Var<float> u0initval("ui.u0initval", 0.5 , 0, 1);
-//    static Var<int> u0initval("ui.u0initval", -8 , -10, 10);
+//    static Var<float> u0initval("ui.u0initval", 0.5 , 0, 1);
+    static Var<int> u0initval("ui.u0initval", -8 , -10, 10);
     static Var<float> dmin("ui.dmin", 0.01 , 0, 2);
     static Var<float> dmax("ui.dmax", 1 , 0, 4);
 
@@ -494,16 +502,18 @@ int main( int /*argc*/, char* argv[] )
 
     static long unsigned int iterations = 0;
 
-    if( Pushed(resetsq))
+    if( Pushed(resetsq) )
     {
         warps = 0 ;
         iterations = 0;
+        cout << "Going to initialise" << endl;
         Stereo2D->InitialiseVariables(u0initval);
 
     }
 
-    if ( warps == 0 && iterations == 0 )
+    if (warps == 0 && iterations == 0 )
     {
+        cout <<"Computing the gradients" << endl;
         Stereo2D->computeImageGradient_wrt_depth(fl,
                                                 pp,
                                                 R_lr_,
@@ -512,6 +522,7 @@ int main( int /*argc*/, char* argv[] )
                                                 dmin,
                                                 dmax);
 
+        cout << "Has computed the gradients" << endl;
     }
 
     if ( iterations > max_iterations)
@@ -530,7 +541,7 @@ int main( int /*argc*/, char* argv[] )
         warps++;
     }
 
-    if ( warps <= max_warps &&  when2show % 1  == 0 )
+    if (warps <= max_warps &&  when2show % 1  == 0 )
     {
 
          Stereo2D->updatedualReg(lambda,
@@ -543,6 +554,7 @@ int main( int /*argc*/, char* argv[] )
 //                                sigma_q,
 //                                sigma_p);
 
+         //std::cout << "abot to do stup" <<std::endl;
          Stereo2D->updatePrimalData(lambda,
                                 tau,
                                 sigma_q,
@@ -558,8 +570,18 @@ int main( int /*argc*/, char* argv[] )
 
 
 
+         cout << "Is everything going okay?" << endl;
+//         cout <<"Size of d_u = " << Stereo2D->d_u->width() << ", " << Stereo2D->d_u->height() << endl;
+//         cout <<"Size of h_udisp = " << h_udisp.width() << ", " << h_udisp.height() << endl;
+//         cout <<"Size of h_udisp = " << h_udisp.stride() << ", " <<  Stereo2D->d_u->stride() << endl;
+
+
+
          iu::copy(Stereo2D->d_u,&h_udisp);
-//         iu::copy(Stereo2D->d_gradient_term,&h_pxdisp);
+//         cudaMemcpy(h_udisp.data(),Stereo2D->d_u->data(),width*height*sizeof(float),cudaMemcpyDeviceToHost);
+
+
+         cout << "Yes, it is!" << endl;
 
             float max_u =-9999.0f;
             float min_u = 9999.0f;
@@ -598,7 +620,7 @@ int main( int /*argc*/, char* argv[] )
                 {
                     float val = *(h_udisp_ptr+(i*width+j));
 //                    cout << "before = " << val << endl;
-                    *(h_udisp_ptr+(i*width+j)) = val;//(val - min_u)/(max_u - min_u);
+                    *(h_udisp_ptr+(i*width+j)) = (val - min_u)/(max_u - min_u);
 //                    cout << " h_udisp.getPixel(j,i)" << h_udisp.getPixel(j,i) << endl;
                 }
             }
@@ -612,7 +634,7 @@ int main( int /*argc*/, char* argv[] )
     cout << "iterations = " << iterations << endl;
 
 
-    // if ( iterations % 100 == 0)
+//     if ( iterations % 100 == 0)
     {
         view_image0.Activate();
         DisplayFloatDeviceMem(&view_image0,Stereo2D->d_ref_image->data(),Stereo2D->d_ref_image->pitch(),pbo,tex_show);

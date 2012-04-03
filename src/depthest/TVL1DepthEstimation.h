@@ -1,9 +1,10 @@
 #ifndef _TVL1DepthEstimation_
 #define _TVL1DepthEstimation_
 
-#include "../../minimal_imgutilities/src/iucore.h"
+#include "../../imageutilities/src/iucore.h"
 #include "../kernels/primal_dual_update.h"
-#include "../../minimal_imgutilities/src/iuio.h"
+#include "../../imageutilities/src/iuio.h"
+//#include "../../imageutilities/src/iumath.h"
 
 class TVL1DepthEstimation{
 
@@ -22,6 +23,8 @@ public:
 
     iu::ImageGpu_32f_C1* d_data_term;
     iu::ImageGpu_32f_C1* d_gradient_term;
+
+//    iu::ImageGpu_32f_C4 *d_data_term_all;
 
     iu::ImageGpu_32f_C1* d_cur2ref_warped;
 
