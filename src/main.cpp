@@ -45,6 +45,29 @@ using namespace TooN;
 
 //extern "C" texture<float, 2, cudaReadModeElementType> my_tex;
 
+struct GPUMem
+{
+ GPUMem() :
+   free_mbyte(0),
+   total_mbyte(0),
+   used_mbyte(0)
+ {}
+
+ size_t free_mbyte;
+ size_t total_mbyte;
+ size_t used_mbyte;
+
+ void getGPUMem()
+ {
+   cudaMemGetInfo(&free_mbyte, &total_mbyte);
+
+   free_mbyte /= (1024*1024);
+   total_mbyte /= (1024*1024);
+   used_mbyte = total_mbyte - free_mbyte;
+ }
+};
+
+
 
 TooN::SE3<> computeTpov_cam(int ref_img_no, int which_blur_sample)
 {
@@ -489,8 +512,11 @@ int main( int /*argc*/, char* argv[] )
     static Var<int> max_iterations("ui.max_iterations", 300 , 1, 4000);
     static Var<int> max_warps("ui.max_warps", 20 , 0, 400);
 
+
 //    static Var<float> u0initval("ui.u0initval", 0.5 , 0, 1);
+
     static Var<int> u0initval("ui.u0initval", -8 , -10, 10);
+
     static Var<float> dmin("ui.dmin", 0.01 , 0, 2);
     static Var<float> dmax("ui.dmax", 1 , 0, 4);
 
@@ -570,7 +596,7 @@ int main( int /*argc*/, char* argv[] )
 
 
 
-         cout << "Is everything going okay?" << endl;
+//         cout << "Is everything going okay?" << endl;
 //         cout <<"Size of d_u = " << Stereo2D->d_u->width() << ", " << Stereo2D->d_u->height() << endl;
 //         cout <<"Size of h_udisp = " << h_udisp.width() << ", " << h_udisp.height() << endl;
 //         cout <<"Size of h_udisp = " << h_udisp.stride() << ", " <<  Stereo2D->d_u->stride() << endl;
@@ -581,7 +607,7 @@ int main( int /*argc*/, char* argv[] )
 //         cudaMemcpy(h_udisp.data(),Stereo2D->d_u->data(),width*height*sizeof(float),cudaMemcpyDeviceToHost);
 
 
-         cout << "Yes, it is!" << endl;
+//         cout << "Yes, it is!" << endl;
 
             float max_u =-9999.0f;
             float min_u = 9999.0f;
@@ -620,7 +646,14 @@ int main( int /*argc*/, char* argv[] )
                 {
                     float val = *(h_udisp_ptr+(i*width+j));
 //                    cout << "before = " << val << endl;
-                    *(h_udisp_ptr+(i*width+j)) = (val - min_u)/(max_u - min_u);
+                    if ( use_povray )
+                    {
+                        *(h_udisp_ptr+(i*width+j)) = val;
+                    }
+                    else
+                    {
+                        *(h_udisp_ptr+(i*width+j))= (val - min_u)/(max_u - min_u);
+                    }
 //                    cout << " h_udisp.getPixel(j,i)" << h_udisp.getPixel(j,i) << endl;
                 }
             }
@@ -649,6 +682,15 @@ int main( int /*argc*/, char* argv[] )
         view_image3.ActivateAndScissor();
         DisplayFloatDeviceMem(&view_image3,d_depthvals->data(),d_depthvals->pitch(),pbo,tex_show);
     }
+
+
+
+    GPUMem memory;
+    memory.getGPUMem();
+//    cout << "Total Memory = " << memory.total_mbyte << "MBs, Free = " << memory.free_mbyte << "MBs, Used = " << memory.used_mbyte << "MBs" << endl;
+//    cout << "*** Total Memory  ::: "<< memory.total_mbyte << "MBs" << endl;
+//    cout << "***  Free Memory  ::: "<< memory.free_mbyte << "MBs" << endl;
+//    cout << "***  Used Memory  ::: "<< memory.used_mbyte << "MBs" << endl;
 
     d_panel.Render();
     glutSwapBuffers();
