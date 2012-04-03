@@ -88,20 +88,21 @@ __global__ void kernel_doOneIterationUpdatePrimal ( float* d_u,
 //    float grad = d_data_term[y*data_stride+x].z;
 //    float a_b  = (d_data_term[y*data_stride+x].x - d_data_term[y*data_stride+x].y);
 
-    float grad = 0;//d_data_term[y*data_stride+x].z;
-    float a_b  = 0;//(d_data_term[y*data_stride+x].x - d_data_term[y*data_stride+x].y);
-    float a = 0;
-    float b = 0;
-    int patch_hf_width = 1;
+//    float grad = 0;//d_data_term[y*data_stride+x].z;
+//    float a_b  = 0;//(d_data_term[y*data_stride+x].x - d_data_term[y*data_stride+x].y);
+
+    int patch_hf_width = 0;
 
     int count = 0;
 
     float mu_cur=0,mu_ref=0,mu_grad=0;
+    float sum_I2_times_I2grad=0, sum_I2grad=0, sum_I2=0;
+    float sum_I1_times_I2grad=0, sum_I2_sqr=0, sum_I1=0;
 
 
-    for(int i = -patch_hf_width ; i <= patch_hf_width ; i++ )
+    for(int i = -patch_hf_width ; i <= patch_hf_width+1 ; i++ )
     {
-        for(int j = -patch_hf_width ; j <= patch_hf_width ; j++ )
+        for(int j = -patch_hf_width ; j <= patch_hf_width+1 ; j++ )
         {
             if ( x+i >= 0 && x+i< width && y+j >=0 && y+j < height)
             {
@@ -110,6 +111,15 @@ __global__ void kernel_doOneIterationUpdatePrimal ( float* d_u,
                 mu_cur  += data_vars.x;
                 mu_ref  += data_vars.y;
                 mu_grad += data_vars.z;
+
+//                sum_I2_times_I2grad += data_vars.x*data_vars.z;
+//                sum_I2grad += data_vars.z;
+//                sum_I2  += data_vars.x;
+
+//                sum_I2_sqr = data_vars.z*data_vars.z;
+
+//                sum_I1_times_I2grad += data_vars.y*data_vars.z;
+//                sum_I1 += data_vars.y;
 
                 count++;
             }
@@ -123,9 +133,14 @@ __global__ void kernel_doOneIterationUpdatePrimal ( float* d_u,
     float sum_a_b_grad = 0;
     float grad_sqr=0;
 
-    for(int i = -patch_hf_width ; i <= patch_hf_width ; i++ )
+//    sum_a_b_grad = sum_I2_times_I2grad - mu_cur*sum_I2grad - mu_grad*sum_I2 + count*mu_cur*mu_grad;
+//    sum_a_b_grad -= (sum_I1_times_I2grad - mu_ref*sum_I2grad - mu_grad*sum_I1 + count*mu_ref*mu_grad);
+//    grad_sqr = sum_I2_sqr + count*mu_grad*mu_grad - 2*mu_grad*sum_I2grad;
+
+
+    for(int i = -patch_hf_width ; i <= patch_hf_width+1 ; i++ )
     {
-        for(int j = -patch_hf_width ; j <= patch_hf_width ; j++ )
+        for(int j = -patch_hf_width ; j <= patch_hf_width+1 ; j++ )
         {
             if ( x+i >= 0 && x+i< width && y+j >=0 && y+j < height)
             {
@@ -146,8 +161,8 @@ __global__ void kernel_doOneIterationUpdatePrimal ( float* d_u,
 //    grad_sqr = grad_sqr  / (float)count;
 
     float diff_term = 2*lambda*(sum_a_b_grad + grad_sqr*(d_u[y*stride+x]-d_u0[y*stride+x])) - div_p;
-
-    d_u[y*stride+x] = d_u[y*stride+x] - sigma_u*(diff_term);
+    float d_u_ = d_u[y*stride+x] - sigma_u*(diff_term);
+    d_u[y*stride+x] = d_u_;
 
 
 //    float grad_sqr = grad*grad;
@@ -171,7 +186,7 @@ __global__ void kernel_doOneIterationUpdatePrimal ( float* d_u,
 
 
 
-//        d_u[y*stride+x] = fmaxf(0.0f,fminf(1.0f,d_u[y*stride+x]));
+//        d_u[y*stride+x] = fmaxf(0.0f,fminf(1.0f,d_u_));
 
     //    float diff_term = d_q[y*stride+x]*d_gradient_term[y*stride+x] - div_p;
 
@@ -198,7 +213,7 @@ void  doOneIterationUpdatePrimal ( float* d_u,
                                  const float sigma_p)
 {
 
-    dim3 block(boost::math::gcd<unsigned>(width,8), boost::math::gcd<unsigned>(height,8), 1);
+    dim3 block(boost::math::gcd<unsigned>(width,32), boost::math::gcd<unsigned>(height,32), 1);
     dim3 grid( width / block.x, height / block.y);
 
     kernel_doOneIterationUpdatePrimal<<<grid,block>>>(d_u,
@@ -288,7 +303,7 @@ void doOneIterationUpdateDualReg (float* d_px,
                                   const float sigma_p)
 {
 
-    dim3 block(boost::math::gcd<unsigned>(width,8), boost::math::gcd<unsigned>(height,8), 1);
+    dim3 block(boost::math::gcd<unsigned>(width,32), boost::math::gcd<unsigned>(height,32), 1);
     dim3 grid( width / block.x, height / block.y);
 
     kernel_doOneIterationUpdateDualReg<<<grid,block>>>(d_px,
@@ -446,7 +461,7 @@ void doComputeImageGradient_wrt_depth(const float2 fl,
                                     float dmax )
 {
 
-    dim3 block(boost::math::gcd<unsigned>(width,8), boost::math::gcd<unsigned>(height,8), 1);
+    dim3 block(boost::math::gcd<unsigned>(width,32), boost::math::gcd<unsigned>(height,32), 1);
     dim3 grid( width / block.x, height / block.y);
 
     cumat<3,3> R = cumat_from<3,3,float>(R_lr_);
@@ -537,7 +552,7 @@ void doImageWarping(const float2 fl,
                     bool disparity)
 {
 
-    dim3 block(boost::math::gcd<unsigned>(width,8), boost::math::gcd<unsigned>(height,8), 1);
+    dim3 block(boost::math::gcd<unsigned>(width,32), boost::math::gcd<unsigned>(height,32), 1);
     dim3 grid( width / block.x, height / block.y);
 
     cumat<3,3> R = cumat_from<3,3,float>(R_lr_);

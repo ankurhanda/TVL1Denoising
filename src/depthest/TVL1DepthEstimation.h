@@ -2,6 +2,8 @@
 #define _TVL1DepthEstimation_
 
 #include "../../imageutilities/src/iucore.h"
+#include "../../imageutilities/src/iudefs.h"
+#include "../../imageutilities/src/iucore/memorydefs.h"
 #include "../kernels/primal_dual_update.h"
 #include "../../imageutilities/src/iuio.h"
 //#include "../../imageutilities/src/iumath.h"
