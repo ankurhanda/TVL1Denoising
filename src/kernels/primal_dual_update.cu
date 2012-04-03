@@ -22,7 +22,7 @@ const static cudaChannelFormatDesc chandesc_float1 =
 cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat);
 
 
-__global__ void kernel_doOneIterationUpdatePrimal ( float* d_u,
+__global__ void kernel_doOneIterationUpdatePrimal (float * d_u,
                                                    const float* d_u0,
                                                    const unsigned int stride,
                                                    const unsigned int width,
