@@ -60,11 +60,11 @@ void TVL1DepthEstimation::allocateMemory(const unsigned int width, const unsigne
     /// data term saved e.g. I(d) + (d-d0)*gradI_d0 - Ir
     /// It will hold Ic(d0), Ir, dIdz, 1
     d_data_term_all     =  new iu::ImageGpu_32f_C4(width,height);
-    d_data_term     =  new iu::ImageGpu_32f_C1(width,height);
+    d_diffusion_tensor  =  new iu::ImageGpu_32f_C4(width,height);
 
 
-    /// gradient term saved e.g. gradI_d0
-    d_gradient_term =  new iu::ImageGpu_32f_C1(width,height);
+//    /// gradient term saved e.g. gradI_d0
+//    d_gradient_term =  new iu::ImageGpu_32f_C1(width,height);
 
     /// Store the warped image
     d_cur2ref_warped = new iu::ImageGpu_32f_C1(width,height);
@@ -91,10 +91,13 @@ void TVL1DepthEstimation::InitialiseVariables(float initial_val=0.5)
         std::cout <<"stride = " << d_q->stride() << std::endl;
 
         iu::setValue(make_float4(0.0,0.0,0.0,0.0), d_data_term_all , d_data_term_all->roi());
-        std::cout <<"stride = " << d_data_term_all->stride() << std::endl;
+        std::cout <<"data stride = " << d_data_term_all->stride() << std::endl;
 
-        iu::setValue(0.0, d_data_term , d_data_term->roi());
-        std::cout <<"stride = " << d_data_term->stride() << std::endl;
+        iu::setValue(make_float4(0.0,0.0,0.0,0.0), d_diffusion_tensor , d_diffusion_tensor->roi());
+        std::cout <<"tensor stride = " << d_diffusion_tensor->stride() << std::endl;
+
+//        iu::setValue(0.0, d_data_term , d_data_term->roi());
+//        std::cout <<"stride = " << d_data_term->stride() << std::endl;
 
         iu::setValue(initial_val, d_u0 , d_u0->roi());
         std::cout <<"stride = " << d_u0->stride() << std::endl;
@@ -102,8 +105,8 @@ void TVL1DepthEstimation::InitialiseVariables(float initial_val=0.5)
         iu::setValue(initial_val, d_u    , d_u->roi());
         std::cout <<"stride = " << d_u->stride() << std::endl;
 
-        iu::setValue(0.0, d_gradient_term , d_gradient_term->roi());
-        std::cout <<"stride = " << d_gradient_term->stride() << std::endl;
+//        iu::setValue(0.0, d_gradient_term , d_gradient_term->roi());
+//        std::cout <<"stride = " << d_gradient_term->stride() << std::endl;
 
     }
 
@@ -116,8 +119,32 @@ void TVL1DepthEstimation::InitialiseVariables(float initial_val=0.5)
 }
 
 
+void TVL1DepthEstimation::computeDiffusionTensor(const float alpha, const float beta)
+{
 
-void TVL1DepthEstimation::updatedualReg(const float lambda, const float sigma_primal, const float sigma_dual_data, const float sigma_dual_reg)
+   buildDiffusionTensor( d_cur_image->data(),
+                         d_u0->data(),
+                         d_cur_image->stride(),
+                         d_diffusion_tensor->data(),
+                         d_diffusion_tensor->stride(),
+                         d_cur_image->width(),
+                         d_cur_image->height(),
+                         alpha,
+                         beta);
+
+   BindDiffusionTensor(d_diffusion_tensor->data(),
+                       d_diffusion_tensor->width(),
+                       d_diffusion_tensor->height(),
+                       d_diffusion_tensor->pitch());
+
+}
+
+
+
+
+
+void TVL1DepthEstimation::updatedualReg(const float lambda, const float sigma_primal, const float sigma_dual_data, const float sigma_dual_reg,
+                                        const float huberepsilon, const bool use_diffusion_tensor)
 {
 
     doOneIterationUpdateDualReg( d_px->data(),
@@ -129,8 +156,9 @@ void TVL1DepthEstimation::updatedualReg(const float lambda, const float sigma_pr
                                 lambda,
                                 sigma_primal,
                                 sigma_dual_data,
-                                sigma_dual_reg
-                                );
+                                sigma_dual_reg,
+                                huberepsilon,
+                                use_diffusion_tensor);
 
 }
 
@@ -152,7 +180,8 @@ void TVL1DepthEstimation::updatedualData(const float lambda, const float sigma_p
 //                                 );
 
 }
-void TVL1DepthEstimation::updatePrimalData(const float lambda, const float sigma_primal, const float sigma_dual_data, const float sigma_dual_reg)
+void TVL1DepthEstimation::updatePrimalData(const float lambda, const float sigma_primal, const float sigma_dual_data, const float sigma_dual_reg,
+                                           bool use_diffusion_tensor)
 {
 
 //    std::cout << "about to call doOneIterationUpdatePrimal" <<std::endl;
@@ -188,8 +217,8 @@ void TVL1DepthEstimation::updatePrimalData(const float lambda, const float sigma
                                   lambda,
                                   sigma_primal,
                                   sigma_dual_data,
-                                  sigma_dual_reg
-                                 );
+                                  sigma_dual_reg,
+                                  use_diffusion_tensor);
 
 
 //    std::cout << "doOneIterationUpdatePrimal" <<std::endl;

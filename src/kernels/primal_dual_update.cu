@@ -17,9 +17,12 @@
 
 
 texture<float, 2, cudaReadModeElementType> TexImgCur;
-
 const static cudaChannelFormatDesc chandesc_float1 =
 cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat);
+
+texture<float4,2,cudaReadModeElementType> DiffusionTensor;
+const static cudaChannelFormatDesc chandesc_float4 =
+cudaCreateChannelDesc(32, 32, 32, 32, cudaChannelFormatKindFloat);
 
 
 __global__ void kernel_doOneIterationUpdatePrimal (float * d_u,
@@ -37,156 +40,184 @@ __global__ void kernel_doOneIterationUpdatePrimal (float * d_u,
                                                    const float lambda,
                                                    const float sigma_u,
                                                    const float sigma_q,
-                                                   const float sigma_p)
+                                                   const float sigma_p,
+                                                   const bool use_diffusion_tensor)
 {
 
 
     /// Update Equations should be
     /// u = u - tau*( lambda*q*grad - divp )
 
-    float dxp = 0 , dyp = 0;
+    float dxp = 0 , dyp = 0, dxpy = 0, dypx = 0;
 
     unsigned int x = blockIdx.x*blockDim.x + threadIdx.x;
     unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
 
-    if ( x >= 1 && x < width  )  dxp = d_px[y*stride+x] - d_px[y*stride+(x-1)];
+    if ( x >= 1 && x < width  )
+    {
+        dxp  = d_px[y*stride+x] - d_px[y*stride+(x-1)];
 
-    if ( y >= 1 && y < height )  dyp = d_py[y*stride+x] - d_py[(y-1)*stride+x];
+       dxpy  = d_py[y*stride+x] - d_py[y*stride+(x-1)];
+   }
+
+    if ( y >= 1 && y < height )
+    {
+        dyp  = d_py[y*stride+x] - d_py[(y-1)*stride+x];
+
+        dypx = d_px[y*stride+x] - d_px[(y-1)*stride+x];
+    }
 
     float div_p = dxp + dyp;
 
+    if ( use_diffusion_tensor )
+    {
+        float4 tensor_element = tex2D(DiffusionTensor,x+0.5,y+0.5);
+
+        float a11 = tensor_element.x;
+        float a12 = tensor_element.y;
+        float a21 = tensor_element.z;
+        float a22 = tensor_element.w;
+
+        div_p = a11*dxp + a12*dxpy + a21*dypx + a22*dyp;
+    }
+
+//    float ref_img_val = tex2D(TexImgCur,x+0.5,y+0.5);
+//    float u_update = d_u[y*stride+x] + sigma_u*div_p + lambda*sigma_u*ref_img_val;
+//    d_u[y*stride+x] = u_update/(1+lambda*sigma_u);
+
+
 //    float u_update = d_u[y*stride+x] + sigma_u*div_p - sigma_u*lambda*d_q[y*stride+x]*d_gradient_term[y*stride+x];
-
-//    //d_u[y*stride+x] = u_update;
-
+//    d_u[y*stride+x] = u_update;
 //    d_u[y*stride+x] = fmaxf(0.0f,fminf(1.0f,u_update));
 
 
-//    float grad_sqr = d_gradient_term[y*stride+x]*d_gradient_term[y*stride+x];
+//    float grad_sqr = 1;//d_gradient_term[y*stride+x]*d_gradient_term[y*stride+x];
 
 //    float u_ = (d_u[y*stride+x] + sigma_u*(div_p));
 
-//    float u0 = d_u0[y*stride+x];
+////    float u0 = d_u0[y*stride+x];
 
-//    float rho = d_data_term[y*stride+x] + (u_-u0)*d_gradient_term[y*stride+x];
+////    float rho = d_data_term[y*stride+x] + (u_-u0)*d_gradient_term[y*stride+x];
+
+//    float rho = u_ - ref_img_val;
 
 //    if ( rho < -sigma_u*lambda*grad_sqr)
 
-//        d_u[y*stride+x] =  u_ + sigma_u*lambda*d_gradient_term[y*stride+x];
+//        d_u[y*stride+x] =  u_ + sigma_u*lambda*1;//d_gradient_term[y*stride+x];
 
 //    else if( rho > sigma_u*lambda*grad_sqr)
 
-//        d_u[y*stride+x] =  u_ - sigma_u*lambda*d_gradient_term[y*stride+x];
+//        d_u[y*stride+x] =  u_ - sigma_u*lambda*1;//d_gradient_term[y*stride+x];
 
 //    else if ( fabs(rho) <= sigma_u*lambda*grad_sqr)
-//        d_u[y*stride+x] =  u_ - rho/(d_gradient_term[y*stride+x]+10E-6);
+//        d_u[y*stride+x] =  u_ - rho;
 
 
 
 
 
-//    float grad = d_data_term[y*data_stride+x].z;
-//    float a_b  = (d_data_term[y*data_stride+x].x - d_data_term[y*data_stride+x].y);
+    float grad = d_data_term[y*data_stride+x].z;
+    float a_b  = (d_data_term[y*data_stride+x].x - d_data_term[y*data_stride+x].y);
 
 //    float grad = 0;//d_data_term[y*data_stride+x].z;
 //    float a_b  = 0;//(d_data_term[y*data_stride+x].x - d_data_term[y*data_stride+x].y);
 
-    int patch_hf_width = 0;
+//    int patch_hf_width = 0;
 
-    int count = 0;
+//    int count = 0;
 
-    float mu_cur=0,mu_ref=0,mu_grad=0;
-    float sum_I2_times_I2grad=0, sum_I2grad=0, sum_I2=0;
-    float sum_I1_times_I2grad=0, sum_I2_sqr=0, sum_I1=0;
+//    float mu_cur=0,mu_ref=0,mu_grad=0;
+//    float sum_I2_times_I2grad=0, sum_I2grad=0, sum_I2=0;
+//    float sum_I1_times_I2grad=0, sum_I2_sqr=0, sum_I1=0;
 
 
-    for(int i = -patch_hf_width ; i <= patch_hf_width+1 ; i++ )
-    {
-        for(int j = -patch_hf_width ; j <= patch_hf_width+1 ; j++ )
-        {
-            if ( x+i >= 0 && x+i< width && y+j >=0 && y+j < height)
-            {
-                float4 data_vars = d_data_term[(y+j)*data_stride+(x+i)];
+//    for(int i = -patch_hf_width ; i <= patch_hf_width+1 ; i++ )
+//    {
+//        for(int j = -patch_hf_width ; j <= patch_hf_width+1 ; j++ )
+//        {
+//            if ( x+i >= 0 && x+i< width && y+j >=0 && y+j < height)
+//            {
+//                float4 data_vars = d_data_term[(y+j)*data_stride+(x+i)];
 
-                mu_cur  += data_vars.x;
-                mu_ref  += data_vars.y;
-                mu_grad += data_vars.z;
+//                mu_cur  += data_vars.x;
+//                mu_ref  += data_vars.y;
+//                mu_grad += data_vars.z;
 
-//                sum_I2_times_I2grad += data_vars.x*data_vars.z;
-//                sum_I2grad += data_vars.z;
-//                sum_I2  += data_vars.x;
+////                sum_I2_times_I2grad += data_vars.x*data_vars.z;
+////                sum_I2grad += data_vars.z;
+////                sum_I2  += data_vars.x;
 
-//                sum_I2_sqr = data_vars.z*data_vars.z;
+////                sum_I2_sqr = data_vars.z*data_vars.z;
 
-//                sum_I1_times_I2grad += data_vars.y*data_vars.z;
-//                sum_I1 += data_vars.y;
+////                sum_I1_times_I2grad += data_vars.y*data_vars.z;
+////                sum_I1 += data_vars.y;
 
-                count++;
-            }
-        }
-    }
+//                count++;
+//            }
+//        }
+//    }
 
-    mu_cur  = mu_cur/(float)count;
-    mu_ref  = mu_ref/(float)count;
-    mu_grad = mu_grad/(float)count;
+//    mu_cur  = mu_cur/(float)count;
+//    mu_ref  = mu_ref/(float)count;
+//    mu_grad = mu_grad/(float)count;
 
-    float sum_a_b_grad = 0;
-    float grad_sqr=0;
+//    float sum_a_b_grad = 0;
+//    float grad_sqr=0;
 
 //    sum_a_b_grad = sum_I2_times_I2grad - mu_cur*sum_I2grad - mu_grad*sum_I2 + count*mu_cur*mu_grad;
 //    sum_a_b_grad -= (sum_I1_times_I2grad - mu_ref*sum_I2grad - mu_grad*sum_I1 + count*mu_ref*mu_grad);
 //    grad_sqr = sum_I2_sqr + count*mu_grad*mu_grad - 2*mu_grad*sum_I2grad;
 
 
-    for(int i = -patch_hf_width ; i <= patch_hf_width+1 ; i++ )
-    {
-        for(int j = -patch_hf_width ; j <= patch_hf_width+1 ; j++ )
-        {
-            if ( x+i >= 0 && x+i< width && y+j >=0 && y+j < height)
-            {
+//    for(int i = -patch_hf_width ; i <= patch_hf_width+1 ; i++ )
+//    {
+//        for(int j = -patch_hf_width ; j <= patch_hf_width+1 ; j++ )
+//        {
+//            if ( x+i >= 0 && x+i< width && y+j >=0 && y+j < height)
+//            {
 
-                float grad = d_data_term[y*data_stride+x].z - mu_grad;
-                float a = d_data_term[y*data_stride+x].x - mu_cur;
-                float b = d_data_term[y*data_stride+x].y - mu_ref;
+//                float grad = d_data_term[(y+j)*data_stride+x+i].z - mu_grad;
+//                float a = d_data_term[(y+j)*data_stride+(x+i)].x - mu_cur;
+//                float b = d_data_term[(y+j)*data_stride+(x+i)].y - mu_ref;
 
-                sum_a_b_grad += (a-b)*grad;
-                grad_sqr += grad*grad;
+//                sum_a_b_grad += (a-b)*grad;
+//                grad_sqr += grad*grad;
 
-            }
-        }
-    }
+//            }
+//        }
+//    }
 
 
 //    sum_a_b_grad = sum_a_b_grad   / (float)count;
 //    grad_sqr = grad_sqr  / (float)count;
 
-    float diff_term = 2*lambda*(sum_a_b_grad + grad_sqr*(d_u[y*stride+x]-d_u0[y*stride+x])) - div_p;
-    float d_u_ = d_u[y*stride+x] - sigma_u*(diff_term);
-    d_u[y*stride+x] = d_u_;
+//    float diff_term = 2*lambda*(sum_a_b_grad + grad_sqr*(d_u[y*stride+x]-d_u0[y*stride+x])) - div_p;
+//    float d_u_ = d_u[y*stride+x] - sigma_u*(diff_term);
+//    d_u[y*stride+x] = d_u_;
 
 
-//    float grad_sqr = grad*grad;
+    float grad_sqr = grad*grad;
 
-//    float u_ = (d_u[y*stride+x] + sigma_u*(div_p));
+    float u_ = (d_u[y*stride+x] + sigma_u*(div_p));
 
-//    float u0 = d_u0[y*stride+x];
+    float u0 = d_u0[y*stride+x];
 
-//    float rho = a_b + (u_-u0)*grad;
+    float rho = a_b + (u_-u0)*grad;
 
-//    if ( rho < -sigma_u*lambda*grad_sqr)
+    if ( rho < -sigma_u*lambda*grad_sqr)
 
-//        d_u[y*stride+x] =  u_ + sigma_u*lambda*grad;
+        d_u[y*stride+x] =  u_ + sigma_u*lambda*grad;
 
-//    else if( rho > sigma_u*lambda*grad_sqr)
+    else if( rho > sigma_u*lambda*grad_sqr)
 
-//        d_u[y*stride+x] =  u_ - sigma_u*lambda*grad;
+        d_u[y*stride+x] =  u_ - sigma_u*lambda*grad;
 
-//    else if ( fabs(rho) <= sigma_u*lambda*grad_sqr)
-//        d_u[y*stride+x] =  u_ - rho/(grad+10E-6);
+    else if ( fabs(rho) <= sigma_u*lambda*grad_sqr)
+        d_u[y*stride+x] =  u_ - rho/(grad+10E-6);
 
 
 
-//        d_u[y*stride+x] = fmaxf(0.0f,fminf(1.0f,d_u_));
+//    d_u[y*stride+x] = fmaxf(0.0f,fminf(1.0f,d_u[y*stride+x]));
 
     //    float diff_term = d_q[y*stride+x]*d_gradient_term[y*stride+x] - div_p;
 
@@ -210,7 +241,8 @@ void  doOneIterationUpdatePrimal ( float* d_u,
                                  const float lambda,
                                  const float sigma_u,
                                  const float sigma_q,
-                                 const float sigma_p)
+                                 const float sigma_p,
+                                  const bool use_diffusion_tensor)
 {
 
     dim3 block(boost::math::gcd<unsigned>(width,32), boost::math::gcd<unsigned>(height,32), 1);
@@ -230,7 +262,8 @@ void  doOneIterationUpdatePrimal ( float* d_u,
                                                        lambda,
                                                        sigma_u,
                                                        sigma_q,
-                                                       sigma_p);
+                                                       sigma_p,
+                                                      use_diffusion_tensor);
 
 
 
@@ -254,7 +287,9 @@ __global__ void kernel_doOneIterationUpdateDualReg (float* d_px,
                                                     const float lambda,
                                                     const float sigma_u,
                                                     const float sigma_q,
-                                                    const float sigma_p)
+                                                    const float sigma_p,
+                                                    const float epsilon,
+                                                    bool use_diffusion_tensor)
 {
 
 
@@ -277,8 +312,28 @@ __global__ void kernel_doOneIterationUpdateDualReg (float* d_px,
         u_dy = d_u[(y+1)*stride+x] - d_u[y*stride+x];
     }
 
-    float pxval = d_px[y*stride+x] + sigma_p*(u_dx);
-    float pyval = d_py[y*stride+x] + sigma_p*(u_dy);
+
+    float a11 = 1, a12 = 0, a21 = 0, a22 = 1;
+
+    if ( use_diffusion_tensor )
+    {
+        float4 tensor_element = tex2D(DiffusionTensor,x+0.5,y+0.5);
+
+        a11 = tensor_element.x;
+        a12 = tensor_element.y;
+        a21 = tensor_element.z;
+        a22 = tensor_element.w;
+    }
+
+
+    float u_dx_ = u_dx;
+    float u_dy_ = u_dy;
+
+    u_dx = a11*u_dx_ + a12*u_dy_;
+    u_dy = a21*u_dx_ + a22*u_dy_;
+
+    float pxval = (d_px[y*stride+x] + sigma_p*(u_dx))/(1+epsilon*sigma_p);
+    float pyval = (d_py[y*stride+x] + sigma_p*(u_dy))/(1+epsilon*sigma_p);
 
     // reprojection
     float reprojection_p   = fmaxf(1.0f,length( make_float2(pxval,pyval) ) );
@@ -300,7 +355,9 @@ void doOneIterationUpdateDualReg (float* d_px,
                                   const float lambda,
                                   const float sigma_u,
                                   const float sigma_q,
-                                  const float sigma_p)
+                                  const float sigma_p,
+                                  const float epsilon,
+                                  const bool use_diffusion_tensor)
 {
 
     dim3 block(boost::math::gcd<unsigned>(width,32), boost::math::gcd<unsigned>(height,32), 1);
@@ -315,7 +372,9 @@ void doOneIterationUpdateDualReg (float* d_px,
                                                        lambda,
                                                        sigma_u,
                                                        sigma_q,
-                                                       sigma_p);
+                                                       sigma_p,
+                                                       epsilon,
+                                                       use_diffusion_tensor);
 
 }
 
@@ -355,6 +414,7 @@ __global__ void kernel_computeImageGradient_wrt_depth(const float2 fl,
         float grad_I2_u0 = tex2D(TexImgCur,xinterp1+0.5,(float)y+0.5) - tex2D(TexImgCur,xinterp0+0.5,(float)y+0.5);
 
         d_data_term[y*data_stride+x]= make_float4(I2_u0,I1_val,grad_I2_u0,1.0f);
+//        d_data_term[y*data_stride+x]= make_float4(0,I1_val,0,1.0f);
 
 
 //        float u0 = d_u0[y*stride+x];
@@ -486,12 +546,6 @@ void doComputeImageGradient_wrt_depth(const float2 fl,
 
 
 }
-
-
-
-
-
-
 
 
 __global__ void kernel_doImageWarping( const float2 fl,
@@ -660,8 +714,90 @@ void BindDepthTexture(float* cur_img,
 }
 
 
+void BindDiffusionTensor(float4* d_diffusion_tensor,
+                      unsigned int width,
+                      unsigned int height,
+                      unsigned int tensor_pitch)
+
+{
+    cudaBindTexture2D(0,DiffusionTensor,d_diffusion_tensor,chandesc_float4,width, height,tensor_pitch);
+
+    DiffusionTensor.addressMode[0] = cudaAddressModeClamp;
+    DiffusionTensor.addressMode[1] = cudaAddressModeClamp;
+    DiffusionTensor.filterMode = cudaFilterModePoint;
+    DiffusionTensor.normalized = false;    // access with normalized texture coordinates
+}
 
 
+__global__ void kernel_buildDiffusionTensor(float* d_ref_image,
+                                            float* d_u0,
+                                            const unsigned int ref_stride,
+                                            float4* d_diffusion_tensor,
+                                            const unsigned int tensor_stride,
+                                            const unsigned int width,
+                                            const unsigned int height,
+                                            const float alpha,
+                                            const float beta)
+{
+    unsigned int x = blockIdx.x*blockDim.x + threadIdx.x;
+    unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
+
+    float Ix = 0, Ix_sqr = 0;
+    float Iy = 0, Iy_sqr = 0;
+
+    float xinterp0 = (float)x+ d_u0[y*ref_stride+x];
+
+//    if ( x + 1 < width )
+//        Ix =  d_ref_image[y*ref_stride+(x+1)] - d_ref_image[y*ref_stride+x];
+//    if ( y + 1 < height )
+//        Iy =  d_ref_image[(y+1)*ref_stride+x] - d_ref_image[y*ref_stride+x];
+
+    Ix = tex2D(TexImgCur,xinterp0+1+0.5,y+0.5)  -tex2D(TexImgCur,xinterp0+0.5,y+0.5);
+    Iy = tex2D(TexImgCur,xinterp0+1+0.5,y+1+0.5)-tex2D(TexImgCur,xinterp0+0.5,y+0.5);
+
+    Ix_sqr = Ix*Ix;
+    Iy_sqr = Iy*Iy;
+
+    float mag_grad = 1.0f;
+    float a11 = 1.0f, a12 = 1E-6;//0.0f;
+    float a21 = 1E-6, a22 = 1.0f;
+
+    mag_grad = max(1E-6,Ix_sqr + Iy_sqr);
+
+    float exp_val = exp(-alpha*pow(mag_grad,beta));
+
+    a11  = exp_val;
+    a12  = 0;
+    a21  = 0;
+    a22  = exp_val;
+    mag_grad = 1.0f;
 
 
+//    a11 = Ix_sqr*(exp_val)+Iy_sqr;
+//    a12 = Ix*Iy*(-1.0f+exp_val);
+//    a21 = a12;
+//    a22 = Iy_sqr*(exp_val)+Ix_sqr;
 
+    d_diffusion_tensor[y*tensor_stride+x] = (1.0f/mag_grad)*make_float4(a11,a12,a21,a22);
+
+}
+
+
+void buildDiffusionTensor(float *d_ref_image, float* d_u0, const unsigned int ref_stride, float4 *d_diffusion_tensor, const unsigned int tensor_stride,
+                          const unsigned int width, const unsigned int height, const float alpha, const float beta)
+{
+
+    dim3 block(boost::math::gcd<unsigned>(width,32), boost::math::gcd<unsigned>(height,32), 1);
+    dim3 grid( width / block.x, height / block.y);
+
+    kernel_buildDiffusionTensor<<<grid,block>>>(d_ref_image,
+                                                d_u0,
+                                          ref_stride,
+                                          d_diffusion_tensor,
+                                          tensor_stride,
+                                          width,
+                                          height,
+                                          alpha,
+                                          beta);
+
+}

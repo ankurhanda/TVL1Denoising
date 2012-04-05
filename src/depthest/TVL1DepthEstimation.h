@@ -23,10 +23,11 @@ public:
     iu::ImageGpu_32f_C1* d_u;
     iu::ImageGpu_32f_C1* d_u0;
 
-    iu::ImageGpu_32f_C1* d_data_term;
-    iu::ImageGpu_32f_C1* d_gradient_term;
+//    iu::ImageGpu_32f_C1* d_data_term;
+//    iu::ImageGpu_32f_C1* d_gradient_term;
 
     iu::ImageGpu_32f_C4 *d_data_term_all;
+    iu::ImageGpu_32f_C4 *d_diffusion_tensor;
 
     iu::ImageGpu_32f_C1* d_cur2ref_warped;
 
@@ -50,7 +51,7 @@ public:
     void updatePrimalData(const float lambda,
                      const float sigma_primal,
                      const float sigma_dual_data,
-                     const float sigma_dual_reg);
+                     const float sigma_dual_reg, bool use_diffusion_tensor);
 
     void updatedualData(const float lambda,
                         const float sigma_primal,
@@ -60,15 +61,18 @@ public:
     void updatedualReg(const float lambda,
                        const float sigma_primal,
                        const float sigma_dual_data,
-                       const float sigma_dual_reg);
+                       const float sigma_dual_reg, const float huberepsilon, const bool use_diffusion_tensor);
 
     void computeImageGradient_wrt_depth(const float2 fl,
                                    const float2 pp,
                                    TooN::Matrix<3,3> R_lr_,
                                    TooN::Matrix<3,1> t_lr_,
                                    bool disparity,
-                                   float dmin,
+                                   float dmin,                                        
                                    float dmax);
+
+    void computeDiffusionTensor(const float alpha, const float beta);
+
     void updateWarpedImage(
                             const float2 fl,
                             const float2 pp,

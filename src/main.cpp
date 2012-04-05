@@ -408,10 +408,15 @@ int main( int /*argc*/, char* argv[] )
 
 
   View& d_panel = pangolin::CreatePanel("ui")
-    .SetBounds(1.0, 0.0, 0, 150);
+          .SetBounds(1.0, 0.0, 0, Attach::Pix(150));
 
   bool use_povray = false;
   bool compute_disparity = true;
+
+//  bool use_diffusion_tensor = true;
+
+//  if ( use_povray )
+//      use_diffusion_tensor = false;
 
   TVL1DepthEstimation *Stereo2D;
 
@@ -434,10 +439,14 @@ int main( int /*argc*/, char* argv[] )
   {
 //      Stereo2D = new TVL1DepthEstimation("../data/im4Ankur0_by2.png","../data/im4Ankur1_by2.png");
       Stereo2D = new TVL1DepthEstimation("../data/Baby2/view1.png","../data/Baby2/view0.png");
+//      Stereo2D = new TVL1DepthEstimation("../data/lena_sigma25.png" ,"../data/lena_sigma25.png");
+
   }
 
   unsigned int width  = Stereo2D->getImgWidth();
   unsigned int height = Stereo2D->getImgHeight();
+
+
 
   float2 fl, pp;
 
@@ -468,7 +477,7 @@ int main( int /*argc*/, char* argv[] )
                      //first distance from bottom left of opengl window i.e. 0.7 is 70%
                      //co-ordinate from bottom left of screen from
                      //0.0 to 1.0 for top, bottom, left, right.
-                     .SetBounds(1.0, 0.0, 150/*cus this is width in pixels of our panel*/, 1.0, true)
+                     .SetBounds(1.0, 0.0, Attach::Pix(150)/*cus this is width in pixels of our panel*/, 1.0, true)
                      .SetLayout(LayoutEqual)
                      .AddDisplay(view_image0)
                      .AddDisplay(view_image1)
@@ -486,32 +495,31 @@ int main( int /*argc*/, char* argv[] )
    int when2show = 0;
    int warps = 0;
 
-   iu::ImageCpu_32f_C1 h_udisp( width,height);
-   iu::ImageCpu_32f_C1 h_pxdisp(IuSize(width,height));
-   iu::ImageGpu_32f_C1 err(width,height);
-
-   iu::setValue(0,&h_udisp,h_udisp.roi());
-   iu::setValue(0,&h_pxdisp,h_pxdisp.roi());
-
-//   iu::copy(Stereo2D->d_u,&h_udisp);
-
-
-
-   iu::ImageGpu_32f_C1 u_disp(IuSize(width,height));
-
-
    cout << "Everything ready to run" << endl;
+
+   // alpha = 5.0 and b = 0.5
+
+   bool have_computed_tensor = false;
+
+   iu::ImageGpu_32f_C1 err = iu::ImageGpu_32f_C1(width,height);
+   iu::setValue(0,&err,err.roi());
 
   while(!pangolin::ShouldQuit())
   {
 
     static Var<bool> resetsq("ui.Reset Seq",false);
+
+    static Var<bool> use_diffusion_tensor("ui.use_diffusion_tensor",true);
+
     static Var<float> lambda_("ui.lambda", 0.011, 0, 5);
+
     float lambda = lambda_;
 
     static Var<float> sigma_p("ui.sigma_p", 0.5 , 0, 4);
     static Var<float> sigma_q("ui.sigma_q", 0.02 , 0, 4);
     static Var<float> tau("ui.tau", 0.05 , 0, 4);
+    static Var<float> HuberEpsilon("ui.HuberEpsilon", 1E-2 , 5E-3, 5E-1);
+
 
     static Var<int> max_iterations("ui.max_iterations", 30 , 1, 4000);
 //    static Var<int> max_warps("ui.max_warps", 20 , 0, 400);
@@ -519,10 +527,16 @@ int main( int /*argc*/, char* argv[] )
 
 //    static Var<float> u0initval("ui.u0initval", 0.5 , 0, 1);
 
+//#ifdef compute_disparity
     static Var<int> u0initval("ui.u0initval", 4 , -10, 10);
+//#endif
+
+    static Var<float> alpha("ui.alpha", 5.0,0,100);
+    static Var<float> beta("ui.beta", 0.5, 0,2);
 
     static Var<float> dmin("ui.dmin", 0.01 , 0, 2);
     static Var<float> dmax("ui.dmax", 1 , 0, 4);
+
 
     if(HasResized())
       DisplayBase().ActivateScissorAndClear();
@@ -537,15 +551,18 @@ int main( int /*argc*/, char* argv[] )
         warps = 0 ;
         iterations = 0;
         cout << "Going to initialise" << endl;
-        Stereo2D->InitialiseVariables(u0initval);        
+        Stereo2D->InitialiseVariables(u0initval);
+//        iu::copy(Stereo2D->d_ref_image,Stereo2D->d_u);
+        Stereo2D->computeDiffusionTensor(alpha,beta);
     }
 
     {
 
-        //copy current primal variable into the
-        //linearisation primal variable
+
+//        //copy current primal variable into the
+//        //linearisation primal variable
         Stereo2D->doOneWarp();
-        //compute the gradient around the current linearisation point
+//        //compute the gradient around the current linearisation point
         Stereo2D->computeImageGradient_wrt_depth(fl,
                                                 pp,
                                                 R_lr_,
@@ -553,6 +570,9 @@ int main( int /*argc*/, char* argv[] )
                                                 compute_disparity,
                                                 dmin,
                                                 dmax);
+
+        Stereo2D->computeDiffusionTensor(alpha,beta);
+
 
     }
 
@@ -563,7 +583,9 @@ int main( int /*argc*/, char* argv[] )
          Stereo2D->updatedualReg(lambda,
                                tau,
                                sigma_q,
-                               sigma_p);
+                               sigma_p,
+                               HuberEpsilon,
+                               use_diffusion_tensor);
 
 
          //update the primal variable u
@@ -573,9 +595,12 @@ int main( int /*argc*/, char* argv[] )
          Stereo2D->updatePrimalData(lambda,
                                 tau,
                                 sigma_q,
-                                sigma_p);
+                                sigma_p,
+                                use_diffusion_tensor);
     }
 
+    cout << "Max iterations: Done..." << endl;
+    cout << "Warp No: " <<warps <<endl;
     //here we warp the second image
     //using the current primal variable u
     //for our consumption.
@@ -587,7 +612,10 @@ int main( int /*argc*/, char* argv[] )
 
 
 
+
+
     //compute error between the warped image give the solution, and the reference frame.
+
      iu::addWeighted(Stereo2D->d_ref_image, 1,Stereo2D->d_cur2ref_warped,-1,&err,err.roi() );
      if ( iterations % 1 == 0)
     {

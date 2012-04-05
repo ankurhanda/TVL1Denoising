@@ -47,8 +47,8 @@ FIND_PACKAGE(MinimalImgUtilities REQUIRED)
 
 SET(
   SOURCES
-  ./src/kernels/tvl1_denoising.cu
-  ./src/kernels/disparity1D.cu
+#  ./src/kernels/tvl1_denoising.cu
+#  ./src/kernels/disparity1D.cu
  # ./src/kernels/Strumdepthestimation.cu
  # ./src/kernels/Strumdepthestimation.h
   ./src/kernels/primal_dual_update.h
@@ -56,6 +56,8 @@ SET(
   ./src/kernels/cumath.h
   ./src/utils.h
 )
+
+
 
 
 LIST(APPEND CLASSES TVL1DepthEstimation)

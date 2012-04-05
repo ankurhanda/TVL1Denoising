@@ -16,7 +16,7 @@ void doOneIterationUpdateDualReg (float* d_px,
                                   const float lambda,
                                   const float sigma_u,
                                   const float sigma_q,
-                                  const float sigma_p);
+                                  const float sigma_p, const float epsilon, const bool use_diffusion_tensor);
 
 void doOneIterationUpdateDualData( float* d_q,
                                   const unsigned int stride,
@@ -46,7 +46,7 @@ void doOneIterationUpdatePrimal ( float* d_u,
                                 const float lambda,
                                 const float sigma_u,
                                 const float sigma_q,
-                                const float sigma_p);
+                                const float sigma_p, const bool use_diffusion_tensor);
 
 void doComputeImageGradient_wrt_depth(const float2 fl,
                                     const float2 pp,
@@ -66,6 +66,12 @@ void doComputeImageGradient_wrt_depth(const float2 fl,
                                     float dmin,
                                     float dmax );
 
+void buildDiffusionTensor(float* d_ref_image,
+                          float* d_u0,
+                          const unsigned int ref_stride,
+                          float4* d_diffusion_tensor,
+                          const unsigned int tensor_stride, const unsigned int width, const unsigned int height, const float alpha, const float beta);
+
 
 void doImageWarping(const float2 fl,
                     const float2 pp,
@@ -82,5 +88,10 @@ void BindDepthTexture        (float* cur_img,
                               unsigned int width,
                               unsigned int height,
                               unsigned int imgStride);
+
+void BindDiffusionTensor(float4* d_diffusion_tensor,
+                      unsigned int width,
+                      unsigned int height,
+                      unsigned int tensor_pitch);
 
 #endif
