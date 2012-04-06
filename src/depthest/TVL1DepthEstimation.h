@@ -80,6 +80,9 @@ public:
                             TooN::Matrix<3,1> t_lr_,
                             bool disparity);
 
+
+    void doExactSearch( float theta, float lambda );
+
     void allocateMemory(const unsigned int width, const unsigned int heightt);
 
 

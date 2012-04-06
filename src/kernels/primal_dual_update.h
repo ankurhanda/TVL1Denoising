@@ -7,6 +7,9 @@
 #include <TooN/TooN.h>
 #include "cumath.h"
 
+
+
+
 void doOneIterationUpdateDualReg (float* d_px,
                                   float* d_py,
                                   float* d_u,
@@ -83,6 +86,15 @@ void doImageWarping(const float2 fl,
                     const unsigned int width,
                     const unsigned int height,
                     bool disparity);
+
+void exactSearch(float* d_ref_image,
+                 float* d_u,
+                 float* d_u0,
+                 const unsigned int width,
+                 const unsigned int height,
+                 const unsigned int stride,
+                 const float lambda,
+                 const float theta);
 
 void BindDepthTexture        (float* cur_img,
                               unsigned int width,

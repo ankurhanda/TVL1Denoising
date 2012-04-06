@@ -304,3 +304,19 @@ void TVL1DepthEstimation::updateWarpedImage ( const float2 fl,
                        disparity);
 
 }
+
+
+
+
+void TVL1DepthEstimation::doExactSearch(float theta, float lambda)
+{
+
+    exactSearch(d_ref_image->data(),
+                d_u->data(),
+                d_u0->data(),
+                d_u->width(),
+                d_u->height(),
+                d_u->stride(),
+                lambda,
+                theta);
+}
