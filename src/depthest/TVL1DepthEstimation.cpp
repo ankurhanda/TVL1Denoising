@@ -13,7 +13,8 @@
 
 using namespace std;
 
-TVL1DepthEstimation::TVL1DepthEstimation(const std::string& refimgfile, const std::string& curimgfile)
+
+TVL1DepthEstimation::TVL1DepthEstimation (const std::string& refimgfile, std::vector<std::string> curimgfiles)
                     :allocated(false)
 {
 
@@ -21,9 +22,13 @@ TVL1DepthEstimation::TVL1DepthEstimation(const std::string& refimgfile, const st
     cout << "Constructor" << endl;
 
     d_ref_image = iu::imread_cu32f_C1(refimgfile);
-    d_cur_image = iu::imread_cu32f_C1(curimgfile);
+    d_cur_image = iu::imread_cu32f_C1(curimgfiles[0]);
 
-//    iu::addC(d_ref_image,0)
+    for(int n_images = 0 ; n_images < curimgfiles.size() ; n_images++ )
+    {
+
+        mvs_images.push_back(iu::imread_cu32f_C1(curimgfiles[n_images]) );
+    }
 
     assert( d_ref_image->width() == d_cur_image->width() );
     std::cout << "width = "<< d_ref_image->width() << std::endl;
@@ -69,6 +74,12 @@ void TVL1DepthEstimation::allocateMemory(const unsigned int width, const unsigne
     /// Store the warped image
     d_cur2ref_warped = new iu::ImageGpu_32f_C1(width,height);
 
+    /// Stores the critical points
+    warped_differences = new iu::ImageGpu_32f_C2(width,height);
+
+    /// Stores the gradients
+    gradients_images = new iu::ImageGpu_32f_C2(width,height);
+
     allocated = true;
 
 }
@@ -105,6 +116,12 @@ void TVL1DepthEstimation::InitialiseVariables(float initial_val=0.5)
         iu::setValue(0.0, d_gradient_term , d_gradient_term->roi());
         std::cout <<"stride = " << d_gradient_term->stride() << std::endl;
 
+        iu::setValue(make_float2(1E10,1E10), warped_differences , warped_differences->roi());
+        std::cout <<"stride = " << warped_differences->stride() << std::endl;
+
+        iu::setValue(make_float2(1E10,1E10), gradients_images , gradients_images->roi());
+        std::cout <<"stride = " << gradients_images->stride() << std::endl;
+
     }
 
     /// Bind the texture
@@ -116,8 +133,17 @@ void TVL1DepthEstimation::InitialiseVariables(float initial_val=0.5)
 }
 
 
+void TVL1DepthEstimation::initMVSdataOnly()
+{
+    iu::setValue(make_float2(1E10,1E10), warped_differences , warped_differences->roi());
+    std::cout <<"stride = " << warped_differences->stride() << std::endl;
 
-void TVL1DepthEstimation::updatedualReg(const float lambda, const float sigma_primal, const float sigma_dual_data, const float sigma_dual_reg)
+    iu::setValue(make_float2(1E10,1E10), gradients_images , gradients_images->roi());
+    std::cout <<"stride = " << gradients_images->stride() << std::endl;
+}
+
+
+void TVL1DepthEstimation::updatedualReg(const float lambda, const float sigma_primal, const float sigma_dual_data, const float sigma_dual_reg, float epsilon)
 {
 
     doOneIterationUpdateDualReg( d_px->data(),
@@ -129,8 +155,8 @@ void TVL1DepthEstimation::updatedualReg(const float lambda, const float sigma_pr
                                 lambda,
                                 sigma_primal,
                                 sigma_dual_data,
-                                sigma_dual_reg
-                                );
+                                sigma_dual_reg,
+                                epsilon);
 
 }
 
@@ -155,36 +181,37 @@ void TVL1DepthEstimation::updatedualData(const float lambda, const float sigma_p
 void TVL1DepthEstimation::updatePrimalData(const float lambda, const float sigma_primal, const float sigma_dual_data, const float sigma_dual_reg)
 {
 
-//    std::cout << "about to call doOneIterationUpdatePrimal" <<std::endl;
 
-//    doOneIterationUpdatePrimal(   d_u->data(),
-//                                  d_u0->data(),
-//                                  d_u->stride(),
-//                                  d_u->width(),
-//                                  d_u->height(),
-//                                  d_data_term_all->data(),
-//                                  d_data_term_all->stride(),
-//                                  d_px->data(),
-//                                  d_py->data(),
-//                                  d_q->data(),
-//                                  lambda,
-//                                  sigma_primal,
-//                                  sigma_dual_data,
-//                                  sigma_dual_reg
-//                                 );
-
+//                                    float* d_u,
+//                                   const float* d_u0,
+//                                   const float4 *d_data_term,
+//                                   float2 *warped_differences,
+//                                   float2 *grad_vals,
+//   //                                const float* d_data_term,
+//   //                                const float* d_gradient_term,
+//                                   const float *d_px,
+//                                   const float *d_py,
+//                                   const float* d_q,
+//                                   const unsigned int width,
+//                                   const unsigned int height,
+//                                   const unsigned int stridef4,
+//                                   const unsigned int stridef2,
+//                                   const unsigned int stridef1,
+//                                   const float lambda, const float sigma_u, const float sigma_q, const float sigma_p)
 
     doOneIterationUpdatePrimal(   d_u->data(),
                                   d_u0->data(),
-                                  d_u->stride(),
-                                  d_u->width(),
-                                  d_u->height(),
                                   d_data_term_all->data(),
-                                  d_data_term_all->stride(),
-//                                  d_gradient_term->data(),
+                                  warped_differences->data(),
+                                  gradients_images->data(),
                                   d_px->data(),
                                   d_py->data(),
                                   d_q->data(),
+                                  d_ref_image->width(),
+                                  d_ref_image->height(),
+                                  d_data_term_all->stride(),
+                                  warped_differences->stride(),
+                                  d_ref_image->stride(),
                                   lambda,
                                   sigma_primal,
                                   sigma_dual_data,
@@ -204,58 +231,41 @@ void TVL1DepthEstimation::computeImageGradient_wrt_depth(const float2 fl,
                                                          TooN::Matrix<3,1> t_lr_,
                                                          bool disparity,
                                                          float dmin,
-                                                         float dmax)
+                                                         float dmax,
+                                                         int which_image)
 {
 
-
-
-
-    doComputeImageGradient_wrt_depth(fl,
-                                     pp,
-                                     d_u->data(),
-                                     d_u0->data(),
-                                     d_data_term_all->data(),
-                                     d_data_term_all->stride(),
-//                                     d_data_term->data(),
-//                                     d_gradient_term->data(),
-                                     R_lr_,
-                                     t_lr_,
-                                     d_u->stride(),
-                                     d_ref_image->data(),
-                                     d_ref_image->width(),
-                                     d_ref_image->height(),
-                                     disparity,
-                                     dmin,
-                                     dmax);
-
-
-
-
-//    dim3 block(boost::math::gcd<unsigned>(width,32), boost::math::gcd<unsigned>(height,32), 1);
-//    dim3 grid( width / block.x, height / block.y);
-
-//    cumat<3,3> R = cumat_from<3,3,float>(R_lr_);
-//    cumat<3,1> t = cumat_from<3,1,float>(t_lr_);
-
-//    kernel_computeImageGradient_wrt_depth<<<grid,block>>>(fl,
-//                                                          pp,
-//                                                          d_u->data(),
-//                                                          d_u0->data(),
-//                                                          d_data_term_all->data(),
-//                                                          d_data_term_all->stride(),
-//                                                          R,
-//                                                          t,
-//                                                          d_u->stride(),
-//                                                          d_ref_image->data(),
-//                                                          d_ref_image->width(),
-//                                                          d_ref_image->height(),
-//                                                          disparity,
-//                                                          dmin,
-//                                                          dmax);
+    doComputeImageGradient_wrt_depth(   fl,
+                                        pp,
+                                        d_u0->data(),
+                                        d_data_term_all->data(),
+                                        warped_differences->data(),
+                                        gradients_images->data(),
+                                        R_lr_,
+                                        t_lr_,
+                                        d_ref_image->data(),
+                                        mvs_images.at(which_image)->data(),
+                                        d_ref_image->width(),
+                                        d_ref_image->height(),
+                                        d_data_term_all->stride(),
+                                        warped_differences->stride(),
+                                        d_ref_image->stride(),
+                                        disparity, dmin, dmax );
 
 
 
 }
+
+
+void TVL1DepthEstimation::sortCriticalPoints()
+{
+    doSortCriticalPoints(warped_differences->data(),
+                         gradients_images->data(),
+                         warped_differences->width(),
+                         warped_differences->height(),
+                         warped_differences->stride());
+}
+
 
 void TVL1DepthEstimation::updateWarpedImage ( const float2 fl,
                                               const float2 pp,

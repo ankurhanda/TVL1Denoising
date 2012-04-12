@@ -17,6 +17,7 @@
 
 
 texture<float, 2, cudaReadModeElementType> TexImgCur;
+texture<float, 2, cudaReadModeElementType> TexImgCur2;
 
 const static cudaChannelFormatDesc chandesc_float1 =
 cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat);
@@ -24,16 +25,17 @@ cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat);
 
 __global__ void kernel_doOneIterationUpdatePrimal ( float* d_u,
                                                    const float* d_u0,
-                                                   const unsigned int stride,
-                                                   const unsigned int width,
-                                                   const unsigned int height,
                                                    const float4* d_data_term,
-                                                   const unsigned int data_stride,
-//                                                   const float* d_data_term,
-//                                                   const float* d_gradient_term,
+                                                   float2* warped_differences,
+                                                   float2* gradients_images,
                                                    const float* d_px,
                                                    const float* d_py,
                                                    const float* d_q,
+                                                   const unsigned int width,
+                                                   const unsigned int height,
+                                                   const unsigned int stridef4,
+                                                   const unsigned int stridef2,
+                                                   const unsigned int stridef1,
                                                    const float lambda,
                                                    const float sigma_u,
                                                    const float sigma_q,
@@ -49,137 +51,140 @@ __global__ void kernel_doOneIterationUpdatePrimal ( float* d_u,
     unsigned int x = blockIdx.x*blockDim.x + threadIdx.x;
     unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
 
-    if ( x >= 1 && x < width  )  dxp = d_px[y*stride+x] - d_px[y*stride+(x-1)];
+    if ( x >= 1 && x < width  )  dxp = d_px[y*stridef1+x] - d_px[y*stridef1+(x-1)];
 
-    if ( y >= 1 && y < height )  dyp = d_py[y*stride+x] - d_py[(y-1)*stride+x];
+    if ( y >= 1 && y < height )  dyp = d_py[y*stridef1+x] - d_py[(y-1)*stridef1+x];
 
     float div_p = dxp + dyp;
-
-//    float u_update = d_u[y*stride+x] + sigma_u*div_p - sigma_u*lambda*d_q[y*stride+x]*d_gradient_term[y*stride+x];
-
-//    //d_u[y*stride+x] = u_update;
-
-//    d_u[y*stride+x] = fmaxf(0.0f,fminf(1.0f,u_update));
+    float u0 = d_u0[y*stridef1+x];
 
 
-//    float grad_sqr = d_gradient_term[y*stride+x]*d_gradient_term[y*stride+x];
+    float u_ = (d_u[y*stridef1+x] + sigma_u*(div_p));
 
-//    float u_ = (d_u[y*stride+x] + sigma_u*(div_p));
+    float2 bis       = warped_differences[y*stridef2+x];
+    float2 grad_vals = gradients_images[y*stridef2+x];
 
-//    float u0 = d_u0[y*stride+x];
+    float a1 = grad_vals.x+1e-6;
+    float a2 = grad_vals.y+1e-6;
 
-//    float rho = d_data_term[y*stride+x] + (u_-u0)*d_gradient_term[y*stride+x];
+    float b1 = bis.x;
+    float b2 = bis.y;
+
+    float rho1 = a1*u_ - b1;
+    float rho2 = a2*u_ - b2;
+
+
+    float update = 0;
+
+    if ( x == 357 && y == 121 )
+    {
+        printf("%f %f %f %f\n",bis.x,bis.y, grad_vals.x,grad_vals.y);
+    }
+
+
+    /// It is assumed that b1/a1 < b2/a2 i.e. they are already sorted
+
+    /// Case 1
+    /// rho_1(u_) > sigma_u*(a1-a2)*a1
+    /// rho_2(u_) < sigma_u*(a1-a2)*a2
+    /// u^{n+1} = u_ - sigma_u*(a1-a2)
+
+    if ( rho1 > sigma_u*lambda*(a1-a2)*a1 &&
+         rho2 < sigma_u*lambda*(a1-a2)*a2)
+    {
+        update = u_ - sigma_u*lambda*(a1-a2);
+    }
+
+    /// Case 2
+    /// rho_2(u_) > sigma_u_u*(a1+a2)*a2
+    /// u^{n+1} = u_ - sigma_u_u*(a1+a2)
+
+    else if ( rho2 > sigma_u*lambda*(a1+a2)*a2)
+    {
+        update = u_ - sigma_u*lambda*(a1+a2);
+    }
+
+    /// Case 3
+    /// rho_1(u_) < -sigma_u_u*(a1+a2)*a1
+    /// u^{n+1} = u_ + sigma_u_u*(a1+a2)
+
+    else if ( rho1 < -sigma_u*lambda*(a1+a2)*a1)
+    {
+        update = u_ + sigma_u*lambda*(a1+a2);
+    }
+
+
+    /// Case 4
+    /// min(rho1(b2/a2), rho2(b1/a1) )
+    else
+    {
+//         float rho1d2 = fabs(a1*b2/a2-b1);
+//         float rho2d1 = fabs(a2*b1/a1-b2);
+
+
+
+        float ratio = ( fabs(a1*b2-b1*a2)*fabs(a1) )/ (fabs(a2*b1-b2*a1)*fabs(a2));
+//        if ( rho1d2 > rho2d1 )
+        if( ratio > 1 )
+        {
+            update = b1/(a1+1E-20);
+        }
+        else{
+            update = b2/(a2+1E-20);
+        }
+
+    }
+
+
+    d_u[y*stridef1+x] = update;
+    d_u[y*stridef1+x] = fmaxf(0.0f,fminf(1.0f,update));
+
+
+
+//    float grad = a1;//d_data_term[y*data_stride+x].z;
+//    float b    = b1;//(d_data_term[y*data_stride+x].x - d_data_term[y*data_stride+x].y);
+
+//    float grad_sqr = grad*grad;
+
+////    float rho = a_b + (u_-u0)*grad;
+//    float rho = u_*a1 - b1;
 
 //    if ( rho < -sigma_u*lambda*grad_sqr)
 
-//        d_u[y*stride+x] =  u_ + sigma_u*lambda*d_gradient_term[y*stride+x];
+//        d_u[y*stridef1+x] =  u_ + sigma_u*lambda*grad;
 
 //    else if( rho > sigma_u*lambda*grad_sqr)
 
-//        d_u[y*stride+x] =  u_ - sigma_u*lambda*d_gradient_term[y*stride+x];
+//        d_u[y*stridef1+x] =  u_ - sigma_u*lambda*grad;
 
 //    else if ( fabs(rho) <= sigma_u*lambda*grad_sqr)
-//        d_u[y*stride+x] =  u_ - rho/(d_gradient_term[y*stride+x]+10E-6);
+//        d_u[y*stridef1+x] =  u_ - rho/(grad+10E-6);
 
+//        d_u[y*stridef1+x] = fmaxf(0.0f,fminf(1.0f,d_u[y*stridef1+x]));
 
-    float grad = d_data_term[y*data_stride+x].z;
-    float a_b  = (d_data_term[y*data_stride+x].x - d_data_term[y*data_stride+x].y);
-
-//    int patch_hf_width = 1;
-
-//    int count = 0;
-
-//    float mu_cur=0,mu_ref=0;
-
-//    for(int i = -patch_hf_width ; i <= patch_hf_width ; i++ )
-//    {
-//        for(int j = -patch_hf_width ; j <= patch_hf_width ; j++ )
-//        {
-//            if ( x+i >= 0 && x+i<= width && y+j >=0 && y+j <= height)
-//            {
-//                /// x is the cur data, y is the ref data
-//                float Id = d_data_term[(y+j)*data_stride+x+i].x;
-//                float Ir = d_data_term[(y+j)*data_stride+x+i].y;
-//                mu_cur += Id;
-//                mu_ref += Ir;
-//                count++;
-//            }
-//        }
-//    }
-
-//    mu_cur  = mu_cur/(float)count;
-//    mu_ref  = mu_ref/(float)count;
-
-
-////    printf("mu_cur = %f, mu_ref = %f",mu_cur,mu_ref);
-//    for(int i = -patch_hf_width ; i <= patch_hf_width ; i++ )
-//    {
-//        for(int j = -patch_hf_width ; j <= patch_hf_width ; j++ )
-//        {
-//            if ( x+i >= 0 && x+i<= width && y+j >=0 && y+j <= height)
-//            {
-//                /// x is the cur data, y is the ref data
-//                float Id = d_data_term[(y+j)*data_stride+(x+i)].x;
-//                float Ir = d_data_term[(y+j)*data_stride+(x+i)].y;
-
-////                a_b += (Id-(mu_cur/mu_ref)*Ir);
-//                a_b += (Id-(mu_cur/mu_ref)*Ir);
-
-//                /// z is the gradient
-//                grad += d_data_term[(y+j)*data_stride+x+i].z;
-//            }
-//        }
-//    }
-
-//    a_b = a_b ;// / (float)count;
-//    grad = grad;// / (float)count;
-
-    float grad_sqr = grad*grad;
-
-    float u_ = (d_u[y*stride+x] + sigma_u*(div_p));
-
-    float u0 = d_u0[y*stride+x];
-
-    float rho = a_b + (u_-u0)*grad;
-
-    if ( rho < -sigma_u*lambda*grad_sqr)
-
-        d_u[y*stride+x] =  u_ + sigma_u*lambda*grad;
-
-    else if( rho > sigma_u*lambda*grad_sqr)
-
-        d_u[y*stride+x] =  u_ - sigma_u*lambda*grad;
-
-    else if ( fabs(rho) <= sigma_u*lambda*grad_sqr)
-        d_u[y*stride+x] =  u_ - rho/(grad+10E-6);
-
-
-
-        //d_u[y*stride+x] = fmaxf(0.0f,fminf(1.0f,d_u[y*stride+x]));
-
-    //    float diff_term = d_q[y*stride+x]*d_gradient_term[y*stride+x] - div_p;
 
 
 
 
 }
 
-void  doOneIterationUpdatePrimal ( float* d_u,
-                                  const float* d_u0,
-                                 const unsigned int stride,
-                                 const unsigned int width,
-                                 const unsigned int height,
-                                 const float4* d_data_term,
-                                 const unsigned int data_stride,
-//                                 const float* d_data_term,
-//                                 const float* d_gradien_term,
-                                 const float* d_px,
-                                 const float* d_py,
-                                 const float* d_q,
-                                 const float lambda,
-                                 const float sigma_u,
-                                 const float sigma_q,
-                                 const float sigma_p)
+void  doOneIterationUpdatePrimal (   float* d_u,
+                                     const float* d_u0,
+                                     const float4* d_data_term,
+                                     float2* critical_points,
+                                     float2* grad_vals,
+                                     const float* d_px,
+                                     const float* d_py,
+                                     const float* d_q,
+                                     const unsigned int width,
+                                     const unsigned int height,
+                                     const unsigned int stridef4,
+                                     const unsigned int stridef2,
+                                     const unsigned int stridef1,
+                                     const float lambda,
+                                     const float sigma_u,
+                                     const float sigma_q,
+                                     const float sigma_p)
 {
 
     dim3 block(boost::math::gcd<unsigned>(width,8), boost::math::gcd<unsigned>(height,8), 1);
@@ -187,19 +192,21 @@ void  doOneIterationUpdatePrimal ( float* d_u,
 
     kernel_doOneIterationUpdatePrimal<<<grid,block>>>(d_u,
                                                       d_u0,
-                                                       stride,
-                                                       width,
-                                                       height,
-                                                       d_data_term,
-                                                       data_stride,
-//                                                       d_gradien_term,
-                                                       d_px,                                                      
-                                                       d_py,
-                                                       d_q,
-                                                       lambda,
-                                                       sigma_u,
-                                                       sigma_q,
-                                                       sigma_p);
+                                                      d_data_term,
+                                                      critical_points,
+                                                      grad_vals,
+                                                      d_px,
+                                                      d_py,
+                                                      d_q,
+                                                      width,
+                                                      height,
+                                                      stridef4,
+                                                      stridef2,
+                                                      stridef1,
+                                                      lambda,
+                                                      sigma_u,
+                                                      sigma_q,
+                                                      sigma_p);
 
 
 
@@ -294,7 +301,8 @@ __global__ void kernel_doOneIterationUpdateDualReg (float* d_px,
                                                     const float lambda,
                                                     const float sigma_u,
                                                     const float sigma_q,
-                                                    const float sigma_p)
+                                                    const float sigma_p,
+                                                    const float epsilon)
 {
 
 
@@ -317,11 +325,11 @@ __global__ void kernel_doOneIterationUpdateDualReg (float* d_px,
         u_dy = d_u[(y+1)*stride+x] - d_u[y*stride+x];
     }
 
-    float pxval = d_px[y*stride+x] + sigma_p*(u_dx);
-    float pyval = d_py[y*stride+x] + sigma_p*(u_dy);
+    float pxval = (d_px[y*stride+x] + sigma_p*(u_dx))/(1+epsilon*sigma_p);
+    float pyval = (d_py[y*stride+x] + sigma_p*(u_dy))/(1+epsilon*sigma_p);
 
     // reprojection
-    float reprojection_p   = fmaxf(1.0f,length( make_float2(pxval,pyval) ) );
+    float reprojection_p   = fmaxf(1.0f,length( make_float2(pxval,pyval)) );
 
     d_px[y*stride+x] = pxval/reprojection_p;
     d_py[y*stride+x] = pyval/reprojection_p;
@@ -340,7 +348,8 @@ void doOneIterationUpdateDualReg (float* d_px,
                                   const float lambda,
                                   const float sigma_u,
                                   const float sigma_q,
-                                  const float sigma_p)
+                                  const float sigma_p,
+                                  const float epsilon)
 {
 
     dim3 block(boost::math::gcd<unsigned>(width,8), boost::math::gcd<unsigned>(height,8), 1);
@@ -355,27 +364,30 @@ void doOneIterationUpdateDualReg (float* d_px,
                                                        lambda,
                                                        sigma_u,
                                                        sigma_q,
-                                                       sigma_p);
+                                                       sigma_p,
+                                                       epsilon);
 
 }
 
 
 
-__global__ void kernel_computeImageGradient_wrt_depth(const float2 fl,
+__global__ void kernel_computeImageGradient_wrt_depth(
+                                               const float2 fl,
                                                const float2 pp,
-                                               float* d_u,
                                                float* d_u0,
                                                float4* d_data_term,
-                                               const unsigned int data_stride,
-//                                                float* d_data_term,
-//                                                float* d_gradient_term,
+                                               float2* warped_differences,
+                                               float2* gradients_images,
                                                cumat<3,3>R,
                                                cumat<3,1>t,
-                                               const unsigned int stride,
                                                float* d_ref_img,
+                                               float* d_cur_img,
                                                const unsigned int width,
                                                const unsigned int height,
-                                               bool disparity,
+                                               const unsigned int stridef4,
+                                               const unsigned int stridef2,
+                                               const unsigned int stridef1,
+                                               bool disparity,                                               
                                                float dmin,
                                                float dmax )
 {
@@ -386,27 +398,22 @@ __global__ void kernel_computeImageGradient_wrt_depth(const float2 fl,
         unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
 
 
-        float xinterp0 = (float)x+ d_u0[y*stride+x];
-        float xinterp1 = (float)x+ d_u0[y*stride+x]+1;
+        float xinterp0 = (float)x+ d_u0[y*stridef1+x];
+        float xinterp1 = (float)x+ d_u0[y*stridef1+x]+1;
 
 
         float I2_u0      = tex2D(TexImgCur,xinterp0+0.5,(float)y+0.5);
-        float I1_val     = d_ref_img[y*stride+x];
+        float I1_val     = d_ref_img[y*stridef1+x];
         float grad_I2_u0 = tex2D(TexImgCur,xinterp1+0.5,(float)y+0.5) - tex2D(TexImgCur,xinterp0+0.5,(float)y+0.5);
 
-        d_data_term[y*data_stride+x]= make_float4(I2_u0,I1_val,grad_I2_u0,1.0f);
+        d_data_term[y*stridef4+x]= make_float4(I2_u0,I1_val,grad_I2_u0,1.0f);
 
-
-//        float u0 = d_u0[y*stride+x];
-//        float u  = d_u[y*stride+x];
-
-//        d_gradient_term[y*stride+x] = grad_I2_u0 +10E-6;
-//        float data_term_value  = (I2_u0 /*+ (u-u0)*grad_I2_u0 */- I1_val);
-//        d_data_term[y*stride+x] = data_term_value;
     }
 
     else
     {
+
+
 
         unsigned int x = blockIdx.x*blockDim.x + threadIdx.x;
         unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
@@ -419,18 +426,16 @@ __global__ void kernel_computeImageGradient_wrt_depth(const float2 fl,
         cumat<3,1> uvnormMat = {uvnorm.x, uvnorm.y, uvnorm.z};
 
 
-        float zLinearised = d_u0[y*stride+x];
+        float zLinearised = d_u0[y*stridef1+x];
         zLinearised = fmaxf(0.0f,fminf(1.0f,zLinearised));
 
         cumat<3,1> p3d_r       = {uvnorm.x*zLinearised, uvnorm.y*zLinearised, zLinearised};
 
-        /// Are we really sure of this?
         cumat<3,1> p3d_dest  =  R*p3d_r + t;
 
         p3d_dest(2,0) = fmax(0.0f,fmin(1.0f,p3d_dest(2,0)));
 
         float dIdz;
-        float Id_minus_Ir;
 
         float3 p3d_dest_vec = {p3d_dest(0,0), p3d_dest(1,0), p3d_dest(2,0)};
 
@@ -440,7 +445,7 @@ __global__ void kernel_computeImageGradient_wrt_depth(const float2 fl,
         p2D_live.y= fmaxf(0,fminf(height,p2D_live.y*fl.y + pp.y));
 
 
-        float Ir =  d_ref_img[y*stride+x];
+        float Ir =  d_ref_img[y*stridef1+x];
 
         float Id =  tex2D(TexImgCur,  p2D_live.x+0.5f,p2D_live.y+0.5f);
         float Idx = tex2D(TexImgCur,  p2D_live.x+0.5f+1.0f,p2D_live.y+0.5f);
@@ -456,7 +461,7 @@ __global__ void kernel_computeImageGradient_wrt_depth(const float2 fl,
 
         float2 dIdx = make_float2(Idx-Id, Idy-Id);
 
-        p3d_dest_vec.z = p3d_dest_vec.z + 10E-6;
+        p3d_dest_vec.z = p3d_dest_vec.z + 1E-6;
 
 //        float3 dpi_u = make_float3(1/p3d_dest_vec.z, 0,-(p3d_dest_vec.x)/(p3d_dest_vec.z*p3d_dest_vec.z));
 //        float3 dpi_v = make_float3(0, 1/p3d_dest_vec.z,-(p3d_dest_vec.y)/(p3d_dest_vec.z*p3d_dest_vec.z));
@@ -470,35 +475,52 @@ __global__ void kernel_computeImageGradient_wrt_depth(const float2 fl,
 
         dIdz =  dot(dIdx, make_float2( dot(dXdz_vec,dpi_u),  dot(dXdz_vec,dpi_v) ) );
 
-//        Id_minus_Ir = Id-Ir;
+
+        float2 I2u0minusI1   =  warped_differences[y*stridef2+x];
+        float2 grads     = gradients_images[y*stridef2+x];
+
+        float b = d_u0[y*stridef1+x]*dIdz + Ir - Id;
+        float a = dIdz;
 
 
-        d_data_term[y*data_stride+x]= make_float4(Id,Ir,dIdz,1);
-//        d_data_term[y*stride+x] = Id_minus_Ir ;//+ (u-u0)*dIdz;
-//        d_gradient_term[y*stride+x] = dIdz;
+//        if ( x == 356 && y == 246 )
+//        {
+//            printf("%d %d %d %d\n",b,a);
+//        }
 
+        I2u0minusI1.y = I2u0minusI1.x;
+        I2u0minusI1.x = b;
+
+        grads.y = grads.x;
+        grads.x = a+1e-6;
+
+        warped_differences[y*stridef2+x]  = I2u0minusI1;
+        gradients_images[y*stridef2+x] = grads;
     }
 
 }
 
 
-void doComputeImageGradient_wrt_depth(const float2 fl,
-                                    const float2 pp,
-                                    float* d_u,
-                                    float* d_u0,
-                                    float4* d_data_term,
-                                    const unsigned int data_stride,
-//                                      float* d_data_term,
-//                                      float* d_gradient_term,
-                                    TooN::Matrix<3,3>R_lr_,
-                                    TooN::Matrix<3,1>t_lr_,
-                                    const unsigned int stride,
-                                    float* d_ref_img,
-                                    const unsigned int width,
-                                    const unsigned int height,
-                                    bool disparity,
-                                    float dmin,
-                                    float dmax )
+
+
+void doComputeImageGradient_wrt_depth(    const float2 fl,
+                                          const float2 pp,
+                                          float* d_u0,
+                                          float4* d_data_term,
+                                          float2* critical_points,
+                                          float2* gradients_images,
+                                          TooN::Matrix<3,3>& R_lr_,
+                                          TooN::Matrix<3,1>& t_lr_,
+                                          float* d_ref_img,
+                                          float* d_cur_img,
+                                          const unsigned int width,
+                                          const unsigned int height,
+                                          const unsigned int stridef4,
+                                          const unsigned int stridef2,
+                                          const unsigned int stridef1,
+                                          bool disparity,
+                                          float dmin,
+                                          float dmax )
 {
 
     dim3 block(boost::math::gcd<unsigned>(width,8), boost::math::gcd<unsigned>(height,8), 1);
@@ -507,23 +529,25 @@ void doComputeImageGradient_wrt_depth(const float2 fl,
     cumat<3,3> R = cumat_from<3,3,float>(R_lr_);
     cumat<3,1> t = cumat_from<3,1,float>(t_lr_);
 
+    BindDepthTexture(d_cur_img,width,height,stridef1);
     kernel_computeImageGradient_wrt_depth<<<grid,block>>>(fl,
                                           pp,
-                                          d_u,
                                           d_u0,
                                           d_data_term,
-                                          data_stride,
-//                                          d_gradient_term,
+                                          critical_points,
+                                          gradients_images,
                                           R,
                                           t,
-                                          stride,
                                           d_ref_img,
+                                          d_cur_img,
                                           width,
                                           height,
+                                          stridef4,
+                                          stridef2,
+                                          stridef1,
                                           disparity,
                                           dmin,
                                           dmax);
-
 
 }
 
@@ -629,9 +653,56 @@ void BindDepthTexture(float* cur_img,
     TexImgCur.normalized = false;    // access with normalized texture coordinates
 }
 
+__global__ void kernel_doSortCriticalPoints(float2* warped_differences,
+                                            float2* gradients_images,
+                                            const unsigned int width,
+                                            const unsigned int height,
+                                            const unsigned int stridef2)
+{
+
+    unsigned int x = blockIdx.x*blockDim.x + threadIdx.x;
+    unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
+
+    float2 bis   = warped_differences[y*stridef2+x];
+    float2 grad_vals = gradients_images[y*stridef2+x];
+
+    float2 sortedbis;
+    float2 sortedgrads;
+
+    float b1 = bis.x;
+    float b2 = bis.y;
+    float a1 = grad_vals.x;
+    float a2 = grad_vals.y;
+
+    if (b1*a2 > b2*a1)
+    {
+        sortedbis.x = b2;
+        sortedbis.y = b1;
+
+        sortedgrads.x = a2;
+        sortedgrads.y = a1;
+
+        warped_differences[y*stridef2+x] = sortedbis;
+        gradients_images[y*stridef2+x] = sortedgrads;
+    }
+}
 
 
+void doSortCriticalPoints(float2* critical_points,
+                          float2* gradients_images,
+                          const unsigned int width,
+                          const unsigned int height,
+                          const unsigned int stridef2)
+{
+    dim3 block(boost::math::gcd<unsigned>(width,8), boost::math::gcd<unsigned>(height,8), 1);
+    dim3 grid( width / block.x, height / block.y);
 
+    kernel_doSortCriticalPoints<<<grid,block>>>(critical_points,
+                                gradients_images,
+                                width,
+                                height,
+                                stridef2);
+}
 
 
 

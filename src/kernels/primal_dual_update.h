@@ -16,7 +16,7 @@ void doOneIterationUpdateDualReg (float* d_px,
                                   const float lambda,
                                   const float sigma_u,
                                   const float sigma_q,
-                                  const float sigma_p);
+                                  const float sigma_p, const float epsilon);
 
 void doOneIterationUpdateDualData( float* d_q,
                                   const unsigned int stride,
@@ -33,38 +33,37 @@ void doOneIterationUpdateDualData( float* d_q,
 
 void doOneIterationUpdatePrimal ( float* d_u,
                                 const float* d_u0,
-                                const unsigned int stride,
-                                const unsigned int width,
-                                const unsigned int height,
+                                const float4 *d_data_term,
+                                float2 *critical_points,
+                                float2 *grad_vals,
 //                                const float* d_data_term,
 //                                const float* d_gradient_term,
-                                const float4* d_data_term,
-                                const unsigned int data_stride,
-                                const float* d_px,
-                                const float* d_py,
+                                const float *d_px,
+                                const float *d_py,
                                 const float* d_q,
-                                const float lambda,
-                                const float sigma_u,
-                                const float sigma_q,
-                                const float sigma_p);
+                                const unsigned int width,
+                                const unsigned int height,
+                                const unsigned int stridef4,
+                                const unsigned int stridef2,
+                                const unsigned int stridef1,
+                                const float lambda, const float sigma_u, const float sigma_q, const float sigma_p);
 
 void doComputeImageGradient_wrt_depth(const float2 fl,
                                     const float2 pp,
-                                    float* d_u,
                                     float* d_u0,
-                                    float4* d_data_term,
-                                    const unsigned int data_stride,
-//                                    float* d_data_term,
-//                                    float* d_gradient_term,
-                                    TooN::Matrix<3,3>R_lr_,
-                                    TooN::Matrix<3,1>t_lr,
-                                    const unsigned int stride,
-                                    float* d_ref_img,
+                                    float4 *d_data_term,
+                                    float2 *critical_points,
+                                    float2 *gradients_images,
+                                    TooN::Matrix<3,3>& R_lr_,
+                                    TooN::Matrix<3,1>& t_lr_,
+                                    float *d_ref_img,
+                                    float* d_cur_img,
                                     const unsigned int width,
                                     const unsigned int height,
-                                    bool disparity,
-                                    float dmin,
-                                    float dmax );
+                                    const unsigned int stridef4,
+                                    const unsigned int stridef2,
+                                    const unsigned int stridef1,
+                                    bool disparity, float dmin, float dmax );
 
 
 void doImageWarping(const float2 fl,
@@ -82,5 +81,11 @@ void BindDepthTexture        (float* cur_img,
                               unsigned int width,
                               unsigned int height,
                               unsigned int imgStride);
+
+void doSortCriticalPoints(float2* critical_points,
+                          float2* gradients_images,
+                          const unsigned int width,
+                          const unsigned int height,
+                          const unsigned int stridef2);
 
 #endif

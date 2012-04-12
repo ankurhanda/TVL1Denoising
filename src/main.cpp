@@ -383,48 +383,58 @@ int main( int /*argc*/, char* argv[] )
 
 
   View& d_panel = pangolin::CreatePanel("ui")
-    .SetBounds(1.0, 0.0, 0, 150);
+    .SetBounds(1.0, 0.0, 0, Attach::Pix(150));
 
-  bool use_povray = false;
-  bool compute_disparity = true;
-
+  bool use_povray = true;
   TVL1DepthEstimation *Stereo2D;
 
 //  int ref_no = 34;//453;
 //  int live_no = 35;//454;
 
-  int ref_no = 453;
-  int live_no = 454;
+  int ref_no = 454;
+  int live_no = 455;
 
   char refimgfileName[30];
   char curimgfileName[30];
 
   sprintf(refimgfileName,"../data/scene_00_%04d.png",ref_no);
-  sprintf(curimgfileName,"../data/scene_00_%04d.png",live_no);
 
-  if ( use_povray)
-      Stereo2D = new TVL1DepthEstimation(refimgfileName,curimgfileName);
-  else
+  vector<std::string> mvsimagesfilename;
+  int n_images=2;
+  for(int img_no = 0 ; img_no < n_images; img_no++)
   {
-//      Stereo2D = new TVL1DepthEstimation("../data/im4Ankur0_by2.png","../data/im4Ankur1_by2.png");
-      Stereo2D = new TVL1DepthEstimation("../data/Baby2/view0.png","../data/Baby2/view1.png");
+        sprintf(curimgfileName,"../data/scene_00_%04d.png",live_no+img_no);
+        mvsimagesfilename.push_back(curimgfileName);
   }
+
+  Stereo2D = new TVL1DepthEstimation(refimgfileName,mvsimagesfilename);
 
   unsigned int width  = Stereo2D->getImgWidth();
   unsigned int height = Stereo2D->getImgHeight();
 
   float2 fl, pp;
 
+  vector<TooN::Matrix<3,3> > R_lr_vector;
+  vector<TooN::Matrix<3,1> > t_lr_vector;
+
   TooN::Matrix<3,3> R_lr_ = Zeros(3);
   TooN::Matrix<3,1> t_lr_ = Zeros(3);
 
   iu::ImageCpu_32f_C1 *depth_vals = new iu::ImageCpu_32f_C1(IuSize(width,height));
-
   iu::ImageGpu_32f_C1 *d_depthvals = new iu::ImageGpu_32f_C1(IuSize(width,height));;
 
-  get_camera_and_RT(fl,pp,R_lr_,t_lr_,width, height, use_povray, depth_vals->data(), ref_no, live_no);
 
-  iu::copy(depth_vals,d_depthvals);
+  for(int img_no = 0 ; img_no < mvsimagesfilename.size(); img_no++)
+  {
+    get_camera_and_RT(fl,pp,R_lr_,t_lr_,width, height, use_povray, depth_vals->data(), ref_no, live_no+img_no);
+    R_lr_vector.push_back(R_lr_);
+    t_lr_vector.push_back(t_lr_);
+    if (!img_no){iu::copy(depth_vals,d_depthvals);}
+  }
+
+
+
+
 
 
   cout << "Width = "<< width << ", Height = " << height << endl;
@@ -442,7 +452,7 @@ int main( int /*argc*/, char* argv[] )
                      //first distance from bottom left of opengl window i.e. 0.7 is 70%
                      //co-ordinate from bottom left of screen from
                      //0.0 to 1.0 for top, bottom, left, right.
-                     .SetBounds(1.0, 0.0, 150/*cus this is width in pixels of our panel*/, 1.0, true)
+                     .SetBounds(1.0, 0.0, Attach::Pix(150)/*cus this is width in pixels of our panel*/, 1.0, true)
                      .SetLayout(LayoutEqual)
                      .AddDisplay(view_image0)
                      .AddDisplay(view_image1)
@@ -474,13 +484,14 @@ int main( int /*argc*/, char* argv[] )
 
 
    cout << "Everything ready to run" << endl;
+   bool compute_disparity = false;
 
   while(!pangolin::ShouldQuit())
   {
 
     static Var<bool> resetsq("ui.Reset Seq",false,false);
     static Var<float> lambda_("ui.lambda", 0.011, 0, 5);
-    float lambda = lambda_;
+    float lambda = lambda_ / (mvsimagesfilename.size());
 
     static Var<float> sigma_p("ui.sigma_p", 0.5 , 0, 4);
     static Var<float> sigma_q("ui.sigma_q", 0.02 , 0, 4);
@@ -489,10 +500,14 @@ int main( int /*argc*/, char* argv[] )
     static Var<int> max_iterations("ui.max_iterations", 300 , 1, 4000);
     static Var<int> max_warps("ui.max_warps", 20 , 0, 400);
 
-//    static Var<float> u0initval("ui.u0initval", 0.5 , 0, 1);
-    static Var<int> u0initval("ui.u0initval", -8 , -10, 10);
+     static Var<float> u0initval("ui.u0initval", 0.5 , 0, 1);
+
+//    static Var<int> u0initval("ui.u0initval", -8 , -10, 10);
     static Var<float> dmin("ui.dmin", 0.01 , 0, 2);
     static Var<float> dmax("ui.dmax", 1 , 0, 4);
+    static Var<float> epsilon("ui.epsilon", 1E-4 , 1E-3, 1E-2);
+//    float epsilon = 0.0;
+
 
     if(HasResized())
       DisplayBase().ActivateScissorAndClear();
@@ -514,14 +529,22 @@ int main( int /*argc*/, char* argv[] )
     if (warps == 0 && iterations == 0 )
     {
         cout <<"Computing the gradients" << endl;
-        Stereo2D->computeImageGradient_wrt_depth(fl,
-                                                pp,
-                                                R_lr_,
-                                                t_lr_,
-                                                compute_disparity,
-                                                dmin,
-                                                dmax);
+        Stereo2D->initMVSdataOnly();
+        for(int img_no = 0 ; img_no < mvsimagesfilename.size() ; img_no++)
+        {
+            R_lr_ = R_lr_vector.at(img_no);
+            t_lr_ = t_lr_vector.at(img_no);
+            Stereo2D->computeImageGradient_wrt_depth(fl,
+                                                     pp,
+                                                     R_lr_,
+                                                     t_lr_,
+                                                     compute_disparity,
+                                                     dmin,
+                                                     dmax,
+                                                     img_no);
+        }
 
+        Stereo2D->sortCriticalPoints();
         cout << "Has computed the gradients" << endl;
     }
 
@@ -530,14 +553,21 @@ int main( int /*argc*/, char* argv[] )
         iterations = 0;
         cout << "Warping going on!"<<endl;
         Stereo2D->doOneWarp();
-        Stereo2D->computeImageGradient_wrt_depth(fl,
-                                                pp,
-                                                R_lr_,
-                                                t_lr_,
-                                                compute_disparity,
-                                                dmin,
-                                                dmax);
-
+        Stereo2D->initMVSdataOnly();
+        for(int img_no = 0 ; img_no < mvsimagesfilename.size() ; img_no++)
+        {
+            R_lr_ = R_lr_vector.at(img_no);
+            t_lr_ = t_lr_vector.at(img_no);
+            Stereo2D->computeImageGradient_wrt_depth(fl,
+                                                     pp,
+                                                     R_lr_,
+                                                     t_lr_,
+                                                     compute_disparity,
+                                                     dmin,
+                                                     dmax,
+                                                     img_no);
+        }
+        Stereo2D->sortCriticalPoints();
         warps++;
     }
 
@@ -547,14 +577,10 @@ int main( int /*argc*/, char* argv[] )
          Stereo2D->updatedualReg(lambda,
                                tau,
                                sigma_q,
-                               sigma_p);
+                               sigma_p,
+                               epsilon);
 
-//         Stereo2D->updatedualData(lambda,
-//                                tau,
-//                                sigma_q,
-//                                sigma_p);
 
-         //std::cout << "abot to do stup" <<std::endl;
          Stereo2D->updatePrimalData(lambda,
                                 tau,
                                 sigma_q,
@@ -571,12 +597,6 @@ int main( int /*argc*/, char* argv[] )
 
 
          cout << "Is everything going okay?" << endl;
-//         cout <<"Size of d_u = " << Stereo2D->d_u->width() << ", " << Stereo2D->d_u->height() << endl;
-//         cout <<"Size of h_udisp = " << h_udisp.width() << ", " << h_udisp.height() << endl;
-//         cout <<"Size of h_udisp = " << h_udisp.stride() << ", " <<  Stereo2D->d_u->stride() << endl;
-
-
-
          iu::copy(Stereo2D->d_u,&h_udisp);
 //         cudaMemcpy(h_udisp.data(),Stereo2D->d_u->data(),width*height*sizeof(float),cudaMemcpyDeviceToHost);
 
@@ -594,8 +614,6 @@ int main( int /*argc*/, char* argv[] )
             {
                 for(int j = 0 ; j < width ; j++ )
                 {
-//                    int index = i*width+j;
-
                     if ( h_udisp.getPixel(j,i) > max_u)
                     {
                         max_u = h_udisp.getPixel(j,i);

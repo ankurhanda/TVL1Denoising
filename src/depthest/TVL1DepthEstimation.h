@@ -4,8 +4,7 @@
 #include "../../imageutilities/src/iucore.h"
 #include "../kernels/primal_dual_update.h"
 #include "../../imageutilities/src/iuio.h"
-//#include "../../imageutilities/src/iumath.h"
-
+#include<vector>
 class TVL1DepthEstimation{
 
 public:
@@ -25,9 +24,13 @@ public:
     iu::ImageGpu_32f_C1* d_gradient_term;
 
     iu::ImageGpu_32f_C4 *d_data_term_all;
-
     iu::ImageGpu_32f_C1* d_cur2ref_warped;
 
+    iu::ImageGpu_32f_C2* gradients_images;
+    iu::ImageGpu_32f_C2* warped_differences;
+
+
+    std::vector< iu::ImageGpu_32f_C1* > mvs_images;
     bool allocated;
 
 public:
@@ -38,7 +41,7 @@ public:
     unsigned int getImgHeight(){ return d_ref_image->height();}
 
     TVL1DepthEstimation():allocated(false){};
-    TVL1DepthEstimation(const std::string& refimgfile, const std::string& curimgfile);
+    TVL1DepthEstimation(const std::string& refimgfile, std::vector<std::string> curimgfiles);
 
     void doOneWarp()
     {
@@ -58,7 +61,8 @@ public:
     void updatedualReg(const float lambda,
                        const float sigma_primal,
                        const float sigma_dual_data,
-                       const float sigma_dual_reg);
+                       const float sigma_dual_reg,
+                       float epsilon);
 
     void computeImageGradient_wrt_depth(const float2 fl,
                                    const float2 pp,
@@ -66,7 +70,7 @@ public:
                                    TooN::Matrix<3,1> t_lr_,
                                    bool disparity,
                                    float dmin,
-                                   float dmax);
+                                   float dmax, int which_image);
     void updateWarpedImage(
                             const float2 fl,
                             const float2 pp,
@@ -76,6 +80,8 @@ public:
 
     void allocateMemory(const unsigned int width, const unsigned int heightt);
 
+    void initMVSdataOnly();
+    void sortCriticalPoints();
 
 };
 
