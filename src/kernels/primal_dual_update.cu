@@ -57,22 +57,43 @@ __global__ void kernel_doOneIterationUpdatePrimal (float * d_u,
     {
         dxp  = d_px[y*stride+x] - d_px[y*stride+(x-1)];
 
-       dxpy  = d_py[y*stride+x] - d_py[y*stride+(x-1)];
+//       dxpy  = d_py[y*stride+x] - d_py[y*stride+(x-1)];
    }
 
     if ( y >= 1 && y < height )
     {
         dyp  = d_py[y*stride+x] - d_py[(y-1)*stride+x];
 
-        dypx = d_px[y*stride+x] - d_px[(y-1)*stride+x];
+//        dypx = d_px[y*stride+x] - d_px[(y-1)*stride+x];
     }
 
     float div_p = dxp + dyp;
 
-    float ref_img_val = d_u0[y*stride+x];
-    float u_update = d_u[y*stride+x] + sigma_u*div_p + lambda*sigma_u*ref_img_val;
+//    float u_ = d_u[y*stride+x] + sigma_u*(div_p);
 
-    d_u[y*stride+x] = u_update/(1+lambda*sigma_u);
+    /// case 1
+    /// when rho_1(u_) > sigma_u*(a1-a2)*a1 &&
+    /// rho_2(u_) < sigma_u*(a1-a2)*a2
+    /// u^{n+1} = u_ - sigma_u*(a1-a2)
+
+    /// case 2
+    /// when rho_2(u_) > sigma_u*(a1+a2)*a2
+    /// u^{n+1} = u_ - sigma_u*(a1+a2)
+
+    /// case 3
+    /// when rho_1(u_) < -sigma_u*(a1+a2)*a1
+    /// u^{n+1} = u_ + sigma_u*(a1+a2)
+
+    /// case 4
+    /// It is one of the critical points
+    /// u^{n+1} = min(E(d)V{d \in \frac{bi}{ai}}
+
+
+
+//    float ref_img_val = d_u0[y*stride+x];
+//    float u_update = d_u[y*stride+x] + sigma_u*div_p + lambda*sigma_u*ref_img_val;
+
+//    d_u[y*stride+x] = u_update/(1+lambda*sigma_u);
 
 
 //    if ( use_diffusion_tensor )
@@ -116,8 +137,6 @@ __global__ void kernel_doOneIterationUpdatePrimal (float * d_u,
 //        d_u[y*stride+x] =  u_ - rho;
 
 
-//    float grad = d_data_term[y*data_stride+x].z;
-//    float a_b  = (d_data_term[y*data_stride+x].x - d_data_term[y*data_stride+x].y);
 
 //    float grad = 0;//d_data_term[y*data_stride+x].z;
 //    float a_b  = 0;//(d_data_term[y*data_stride+x].x - d_data_term[y*data_stride+x].y);
@@ -195,34 +214,30 @@ __global__ void kernel_doOneIterationUpdatePrimal (float * d_u,
 //    float d_u_ = d_u[y*stride+x] - sigma_u*(diff_term);
 //    d_u[y*stride+x] = d_u_;
 
+    float grad = d_data_term[y*data_stride+x].z;
+    float a_b  = (d_data_term[y*data_stride+x].x - d_data_term[y*data_stride+x].y);
 
-//    float grad_sqr = grad*grad;
+    float grad_sqr = grad*grad;
 
-//    float u_ = (d_u[y*stride+x] + sigma_u*(div_p));
+    float u_ = (d_u[y*stride+x] + sigma_u*(div_p));
 
-//    float u0 = d_u0[y*stride+x];
+    float u0 = d_u0[y*stride+x];
 
-//    float rho = a_b + (u_-u0)*grad;
+    float rho = a_b + (u_-u0)*grad;
 
-//    if ( rho < -sigma_u*lambda*grad_sqr)
+    if ( rho < -sigma_u*lambda*grad_sqr)
 
-//        d_u[y*stride+x] =  u_ + sigma_u*lambda*grad;
+        d_u[y*stride+x] =  u_ + sigma_u*lambda*grad;
 
-//    else if( rho > sigma_u*lambda*grad_sqr)
+    else if( rho > sigma_u*lambda*grad_sqr)
 
-//        d_u[y*stride+x] =  u_ - sigma_u*lambda*grad;
+        d_u[y*stride+x] =  u_ - sigma_u*lambda*grad;
 
-//    else if ( fabs(rho) <= sigma_u*lambda*grad_sqr)
-//        d_u[y*stride+x] =  u_ - rho/(grad+10E-6);
-
-
-
-//    d_u[y*stride+x] = fmaxf(0.0f,fminf(1.0f,d_u[y*stride+x]));
-
-    //    float diff_term = d_q[y*stride+x]*d_gradient_term[y*stride+x] - div_p;
+    else if ( fabs(rho) <= sigma_u*lambda*grad_sqr)
+        d_u[y*stride+x] =  u_ - rho/(grad+10E-6);
 
 
-
+    d_u[y*stride+x] = fmaxf(0.0f,fminf(1.0f,d_u[y*stride+x]));
 
 }
 
@@ -313,21 +328,21 @@ __global__ void kernel_doOneIterationUpdateDualReg (float* d_px,
     }
 
 
-    float a11 = 1, a12 = 0, a21 = 0, a22 = 1;
+//    float a11 = 1, a12 = 0, a21 = 0, a22 = 1;
 
-    if ( use_diffusion_tensor )
-    {
-        float4 tensor_element = tex2D(DiffusionTensor,x+0.5,y+0.5);
+//    if ( use_diffusion_tensor )
+//    {
+//        float4 tensor_element = tex2D(DiffusionTensor,x+0.5,y+0.5);
 
-        a11 = tensor_element.x;
-        a12 = tensor_element.y;
-        a21 = tensor_element.z;
-        a22 = tensor_element.w;
-    }
+//        a11 = tensor_element.x;
+//        a12 = tensor_element.y;
+//        a21 = tensor_element.z;
+//        a22 = tensor_element.w;
+//    }
 
 
-    float u_dx_ = u_dx;
-    float u_dy_ = u_dy;
+//    float u_dx_ = u_dx;
+//    float u_dy_ = u_dy;
 
 //    u_dx = a11*u_dx_ + a12*u_dy_;
 //    u_dy = a21*u_dx_ + a22*u_dy_;
@@ -494,9 +509,6 @@ __global__ void kernel_computeImageGradient_wrt_depth(const float2 fl,
         float3 dXdz_vec = {dXdz(0,0),dXdz(1,0),dXdz(2,0)};
 
         dIdz =  dot(dIdx, make_float2( dot(dXdz_vec,dpi_u),  dot(dXdz_vec,dpi_v) ) );
-
-//        Id_minus_Ir = Id-Ir;
-
 
         d_data_term[y*data_stride+x]= make_float4(Id,Ir,dIdz,1);
 //        d_data_term[y*stride+x] = Id_minus_Ir ;//+ (u-u0)*dIdz;
@@ -855,7 +867,6 @@ __global__ void kernel_doExactSearch(  float* d_ref_image,
     }
 
     d_u0[y*stride+x] = u_update;
-
 }
 
 

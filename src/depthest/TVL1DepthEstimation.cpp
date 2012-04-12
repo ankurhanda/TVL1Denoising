@@ -147,6 +147,7 @@ void TVL1DepthEstimation::updatedualReg(const float lambda, const float sigma_pr
                                         const float huberepsilon, const bool use_diffusion_tensor)
 {
 
+    std::cout <<"Going to call the regularisation kernel" << std::endl;
     doOneIterationUpdateDualReg( d_px->data(),
                                 d_py->data(),
                                 d_u->data(),

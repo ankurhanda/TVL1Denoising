@@ -410,8 +410,8 @@ int main( int /*argc*/, char* argv[] )
   View& d_panel = pangolin::CreatePanel("ui")
           .SetBounds(1.0, 0.0, 0, Attach::Pix(150));
 
-  bool use_povray = false;
-  bool compute_disparity = true;
+  bool use_povray = true;
+  bool compute_disparity = false;
 
 //  bool use_diffusion_tensor = true;
 
@@ -439,6 +439,7 @@ int main( int /*argc*/, char* argv[] )
   {
 //      Stereo2D = new TVL1DepthEstimation("../data/im4Ankur0_by2.png","../data/im4Ankur1_by2.png");
       Stereo2D = new TVL1DepthEstimation("../data/Baby2/view1_by2.png","../data/Baby2/view0_by2.png");
+//      Stereo2D = new TVL1DepthEstimation("../data/Bowling2/view1.png","../data/Bowling2/view0.png");
 //      Stereo2D = new TVL1DepthEstimation("../data/lena_sigma25.png" ,"../data/lena_sigma25.png");
 
   }
@@ -525,10 +526,10 @@ int main( int /*argc*/, char* argv[] )
 //    static Var<int> max_warps("ui.max_warps", 20 , 0, 400);
 
 
-//    static Var<float> u0initval("ui.u0initval", 0.5 , 0, 1);
+    static Var<float> u0initval("ui.u0initval", 0.5 , 0, 1);
 
 //#ifdef compute_disparity
-    static Var<int> u0initval("ui.u0initval", 4 , -10, 10);
+//    static Var<int> u0initval("ui.u0initval", 4 , -10, 10);
 //#endif
 
     static Var<float> alpha("ui.alpha", 5.0,0,100);
@@ -560,17 +561,17 @@ int main( int /*argc*/, char* argv[] )
     {
 
 
-//        //copy current primal variable into the
-//        //linearisation primal variable
-//        Stereo2D->doOneWarp();
-////        //compute the gradient around the current linearisation point
-//        Stereo2D->computeImageGradient_wrt_depth(fl,
-//                                                pp,
-//                                                R_lr_,
-//                                                t_lr_,
-//                                                compute_disparity,
-//                                                dmin,
-//                                                dmax);
+        //copy current primal variable into the
+        //linearisation primal variable
+        Stereo2D->doOneWarp();
+//        //compute the gradient around the current linearisation point
+        Stereo2D->computeImageGradient_wrt_depth(fl,
+                                                pp,
+                                                R_lr_,
+                                                t_lr_,
+                                                compute_disparity,
+                                                dmin,
+                                                dmax);
 
 //        Stereo2D->computeDiffusionTensor(alpha,beta);
 
@@ -581,7 +582,7 @@ int main( int /*argc*/, char* argv[] )
     for(int it = 0 ; it < max_iterations ;it++){
 
         //update the dual variable of the gradient of the primal: p
-         Stereo2D->updatedualReg(1/theta,
+         Stereo2D->updatedualReg(lambda,
                                tau,
                                sigma_q,
                                sigma_p,
@@ -589,18 +590,18 @@ int main( int /*argc*/, char* argv[] )
                                use_diffusion_tensor);
 
 
-         //update the primal variable u
-         //using the newly linearised data term.
-         //All iterations it therefore use the same linearisation
-         //point u0.
-         Stereo2D->updatePrimalData(1/theta,
+//         //update the primal variable u
+//         //using the newly linearised data term.
+//         //All iterations it therefore use the same linearisation
+//         //point u0.
+         Stereo2D->updatePrimalData(lambda,
                                 tau,
                                 sigma_q,
                                 sigma_p,
                                 use_diffusion_tensor);
 
 
-         Stereo2D->doExactSearch(theta,lambda);
+         //Stereo2D->doExactSearch(theta,lambda);
     }
 
     cout << "Max iterations: Done..." << endl;
