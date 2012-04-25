@@ -6,6 +6,40 @@
 #include <vector_types.h>
 #include <TooN/TooN.h>
 #include "cumath.h"
+#include "derivatives.h"
+
+void updatePrimalu(float* d_u,
+                   float* d_px, float* d_py,
+                   float* d_dataterm,
+                   const float tau,
+                   int2 d_imageSize,
+                   const int stridef1 );
+
+void updateDualq( float* d_q0, float* d_q1,
+                  float* d_q2, float* d_q3,
+                  float* d_v0, float* d_v1,
+                  float sigma,
+                  int2 d_imageSize,
+                  const unsigned int stridef1,
+                  const float alpha1);
+
+void updatePrimalv(float* d_q0, float* d_q1,
+                   float* d_q2, float* d_q3,
+                   float* d_v0, float* d_v1,
+                   float* d_px, float* d_py,
+                   float tau,
+                   int2 d_imageSize,
+                   unsigned int stridef1,
+                   const float alpha1);
+
+void updateDualp(float* d_px, float* d_py,
+                 float* d_u, float* d_v0,
+                 float* d_v1, float sigma,
+                 float alpha0, int2 d_imageSize,
+                 const unsigned int stridef1);
+
+
+
 
 void doOneIterationUpdateDualReg (float* d_px,
                                   float* d_py,

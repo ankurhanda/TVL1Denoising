@@ -20,6 +20,14 @@ public:
     iu::ImageGpu_32f_C1* d_u;
     iu::ImageGpu_32f_C1* d_u0;
 
+    iu::ImageGpu_32f_C1* d_v0;
+    iu::ImageGpu_32f_C1* d_v1;
+
+    iu::ImageGpu_32f_C1* d_q0;
+    iu::ImageGpu_32f_C1* d_q1;
+    iu::ImageGpu_32f_C1* d_q2;
+    iu::ImageGpu_32f_C1* d_q3;
+
     iu::ImageGpu_32f_C1* d_data_term;
     iu::ImageGpu_32f_C1* d_gradient_term;
 
@@ -42,11 +50,18 @@ public:
 
     TVL1DepthEstimation():allocated(false){};
     TVL1DepthEstimation(const std::string& refimgfile, std::vector<std::string> curimgfiles);
+    TVL1DepthEstimation(const std::string& refimgfile);
 
     void doOneWarp()
     {
         iu::copy(d_u,d_u0);
     }
+
+
+    void updatePrimalU(float tau);
+    void updatePrimalV(float tau, float alpha1);
+    void updateDualP(float sigma, float alpha0);
+    void updateDualQ(float sigma, float alpha1);
 
     void updatePrimalData(const float lambda,
                      const float sigma_primal,

@@ -52,8 +52,10 @@ SET(
  # ./src/kernels/Strumdepthestimation.cu
  # ./src/kernels/Strumdepthestimation.h
   ./src/kernels/primal_dual_update.h
-   ./src/kernels/primal_dual_update.cu
+  ./src/kernels/primal_dual_update.cu
+#  ./src/povray_related.cpp
   ./src/kernels/cumath.h
+  ./src/kernels/derivatives.h
   ./src/utils.h
 )
 

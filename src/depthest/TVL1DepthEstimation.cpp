@@ -11,7 +11,26 @@
 //    allocated = false;
 //}
 
+#define method "tgv"
+
+
 using namespace std;
+
+TVL1DepthEstimation::TVL1DepthEstimation ( const std::string& refimgfile )
+                        :allocated(false)
+{
+
+    d_ref_image = iu::imread_cu32f_C1(refimgfile);
+
+    const unsigned int width  = d_ref_image->width();
+    const unsigned int height = d_ref_image->height();
+
+    if (!allocated )
+        allocateMemory(width,height);
+
+    InitialiseVariables(0);
+
+}
 
 
 TVL1DepthEstimation::TVL1DepthEstimation (const std::string& refimgfile, std::vector<std::string> curimgfiles)
@@ -51,6 +70,18 @@ void TVL1DepthEstimation::allocateMemory(const unsigned int width, const unsigne
     /// dual regulariser
     d_px      =  new iu::ImageGpu_32f_C1(width,height);
     d_py      =  new iu::ImageGpu_32f_C1(width,height);
+
+
+    /// d_q
+    d_q0      =  new iu::ImageGpu_32f_C1(width,height);
+    d_q1      =  new iu::ImageGpu_32f_C1(width,height);
+    d_q2      =  new iu::ImageGpu_32f_C1(width,height);
+    d_q3      =  new iu::ImageGpu_32f_C1(width,height);
+
+    /// d_v
+    d_v0      =  new iu::ImageGpu_32f_C1(width,height);
+    d_v1      =  new iu::ImageGpu_32f_C1(width,height);
+
 
     /// dual data
     d_q      =  new iu::ImageGpu_32f_C1(width,height);
@@ -122,13 +153,36 @@ void TVL1DepthEstimation::InitialiseVariables(float initial_val=0.5)
         iu::setValue(make_float2(1E10,1E10), gradients_images , gradients_images->roi());
         std::cout <<"stride = " << gradients_images->stride() << std::endl;
 
+
+        iu::setValue(0.0, d_q0 , d_q0->roi());
+        std::cout <<"stride = " << d_q0->stride() << std::endl;
+
+        iu::setValue(0.0, d_q1 , d_q1->roi());
+        std::cout <<"stride = " << d_q1->stride() << std::endl;
+
+        iu::setValue(0.0, d_q2 , d_q2->roi());
+        std::cout <<"stride = " << d_q2->stride() << std::endl;
+
+        iu::setValue(0.0, d_q3 , d_q3->roi());
+        std::cout <<"stride = " << d_q3->stride() << std::endl;
+
+        iu::setValue(0.0, d_v0 , d_v0->roi());
+        std::cout <<"stride = " << d_v0->stride() << std::endl;
+
+        iu::setValue(0.0, d_v1 , d_v1->roi());
+        std::cout <<"stride = " << d_v1->stride() << std::endl;
+
+//        iu::copy(d_ref_image,d_u);
     }
 
+    if ( method != "tgv" )
+    {
     /// Bind the texture
     BindDepthTexture(d_cur_image->data(),
                      d_cur_image->width(),
                      d_cur_image->height(),
                      d_cur_image->stride());
+    }
 
 }
 
@@ -163,41 +217,12 @@ void TVL1DepthEstimation::updatedualReg(const float lambda, const float sigma_pr
 void TVL1DepthEstimation::updatedualData(const float lambda, const float sigma_primal, const float sigma_dual_data, const float sigma_dual_reg)
 {
 
-//    doOneIterationUpdateDualData( d_q->data(),
-//                                  d_q->stride(),
-//                                  d_q->width(),
-//                                  d_q->height(),
-//                                  d_data_term_all->data(),
-//                                  //d_gradient_term->data(),
-//                                  d_u->data(),
-//                                  d_u0->data(),
-//                                  lambda,
-//                                  sigma_primal,
-//                                  sigma_dual_data,
-//                                  sigma_dual_reg
-//                                 );
 
 }
 void TVL1DepthEstimation::updatePrimalData(const float lambda, const float sigma_primal, const float sigma_dual_data, const float sigma_dual_reg)
 {
 
 
-//                                    float* d_u,
-//                                   const float* d_u0,
-//                                   const float4 *d_data_term,
-//                                   float2 *warped_differences,
-//                                   float2 *grad_vals,
-//   //                                const float* d_data_term,
-//   //                                const float* d_gradient_term,
-//                                   const float *d_px,
-//                                   const float *d_py,
-//                                   const float* d_q,
-//                                   const unsigned int width,
-//                                   const unsigned int height,
-//                                   const unsigned int stridef4,
-//                                   const unsigned int stridef2,
-//                                   const unsigned int stridef1,
-//                                   const float lambda, const float sigma_u, const float sigma_q, const float sigma_p)
 
     doOneIterationUpdatePrimal(   d_u->data(),
                                   d_u0->data(),
@@ -283,5 +308,69 @@ void TVL1DepthEstimation::updateWarpedImage ( const float2 fl,
                        d_u->width(),
                        d_u->height(),
                        disparity);
+
+}
+
+
+void TVL1DepthEstimation::updatePrimalU(float tau)
+{
+
+    updatePrimalu(d_u->data(),
+                  d_px->data(),
+                  d_py->data(),
+                  d_ref_image->data(),
+                  tau,
+                  make_int2(d_u->width(),d_u->height()),
+                  d_u->stride()
+                  );
+
+}
+
+void TVL1DepthEstimation::updatePrimalV(float tau, float alpha1)
+{
+
+    updatePrimalv(d_q0->data(),
+                  d_q1->data(),
+                  d_q2->data(),
+                  d_q3->data(),
+                  d_v0->data(),
+                  d_v1->data(),
+                  d_px->data(),
+                  d_py->data(),
+                  tau,
+                  make_int2(d_u->width(),d_u->height()),
+                  d_u->stride(),
+                  alpha1);
+}
+
+void TVL1DepthEstimation::updateDualP(float sigma, float alpha0)
+{
+
+    updateDualp(d_px->data(),
+                d_py->data(),
+                d_u->data(),
+                d_v0->data(),
+                d_v1->data(),
+                sigma,
+                alpha0,
+                make_int2(d_u->width(),d_u->height()),
+                d_u->stride()
+               );
+
+
+}
+void TVL1DepthEstimation::updateDualQ(float sigma, float alpha1)
+{
+
+    updateDualq(d_q0->data(),
+                d_q1->data(),
+                d_q2->data(),
+                d_q3->data(),
+                d_v0->data(),
+                d_v1->data(),
+                sigma,
+                make_int2(d_u->width(),d_u->height()),
+                d_u->stride(),
+                alpha1);
 
 }

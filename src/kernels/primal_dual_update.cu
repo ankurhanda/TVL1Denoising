@@ -688,6 +688,194 @@ __global__ void kernel_doSortCriticalPoints(float2* warped_differences,
 }
 
 
+__global__ void update_primal_u (float* d_u,
+                                 float* d_px, float* d_py,
+                                 float* d_dataterm,
+                                 const float tau,
+                                 int2 d_imageSize,
+                                 const int stridef1 )
+{
+
+    unsigned int x = blockIdx.x*blockDim.x + threadIdx.x;
+    unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
+
+    int index = y*stridef1+x;
+
+    float div_p = dxp(d_px, x, y , d_imageSize, stridef1 ) + dyp(d_py, x, y, d_imageSize, stridef1 );
+
+    d_u[index] = d_u[index] + tau*(div_p - 2*(d_u[index] - d_dataterm[index]));
+
+}
+
+
+void updatePrimalu(float* d_u,
+                   float* d_px, float* d_py,
+                   float* d_dataterm,
+                   const float tau,
+                   int2 d_imageSize,
+                   const int stridef1 )
+{
+
+    dim3 block(boost::math::gcd<unsigned>(d_imageSize.x,8), boost::math::gcd<unsigned>(d_imageSize.y,8), 1);
+    dim3 grid( d_imageSize.x / block.x, d_imageSize.y / block.y);
+
+    update_primal_u<<<grid,block>>>(d_u, d_px, d_py,
+                                  d_dataterm,
+                                tau, d_imageSize,
+                                  stridef1);
+
+}
+
+
+
+__global__ void update_dual_p( float* d_px, float* d_py,
+                               float* d_u, float* d_v0,
+                               float* d_v1, float sigma,
+                               float alpha0, int2 d_imageSize,
+                               const unsigned int stridef1)
+{
+
+
+    unsigned int x = blockIdx.x*blockDim.x + threadIdx.x;
+    unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
+
+    int index = y*stridef1+x;
+
+    float dx_u = dxm(d_u,x,y, d_imageSize, stridef1);
+    float dy_u = dym(d_u,x,y, d_imageSize, stridef1);
+
+    float2 grad_u = make_float2(dx_u,dy_u);
+    float2 v = make_float2(d_v0[index],d_v1[index]);
+
+    float2 update = make_float2(d_px[index], d_py[index]) + sigma*(grad_u - v);
+
+    float reprojection = fmaxf(1.0f, length(update)/ alpha0  );
+
+    d_px[index] = update.x /reprojection;
+    d_py[index] = update.y /reprojection;
+
+}
+
+
+void updateDualp(float* d_px, float* d_py,
+                 float* d_u, float* d_v0,
+                 float* d_v1, float sigma,
+                 float alpha0, int2 d_imageSize,
+                 const unsigned int stridef1)
+{
+
+    dim3 block(boost::math::gcd<unsigned>(d_imageSize.x,8), boost::math::gcd<unsigned>(d_imageSize.y,8), 1);
+    dim3 grid( d_imageSize.x / block.x, d_imageSize.y / block.y);
+
+    update_dual_p<<<grid,block>>>(d_px, d_py, d_u,
+                                  d_v0, d_v1, sigma,
+                                alpha0, d_imageSize,
+                                stridef1);
+
+
+}
+
+
+__global__ void update_dual_q( float* d_q0, float* d_q1,
+                               float* d_q2, float* d_q3,
+                               float* d_v0, float* d_v1,
+                               float sigma,
+                               int2 d_imageSize,
+                               const unsigned int stridef1,
+                               const float alpha1)
+{
+    unsigned int x = blockIdx.x*blockDim.x + threadIdx.x;
+    unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
+
+    int index = y*stridef1+x;
+
+    float dx_v0 = dxp(d_v0,x,y,d_imageSize,stridef1);
+    float dy_v0 = dyp(d_v0,x,y,d_imageSize,stridef1);
+
+    float dx_v1 = dxp(d_v1,x,y,d_imageSize,stridef1);
+    float dy_v1 = dyp(d_v1,x,y,d_imageSize,stridef1);
+
+    float4 q_n  = make_float4( d_q0[index],d_q1[index],d_q2[index],d_q3[index] );
+    float4 q_n1 = make_float4( dx_v0, dy_v1,(dx_v1 + dy_v0 )/2 ,(dx_v1 + dy_v0 )/2);
+
+    float4 update = q_n + q_n1*sigma;
+
+    float reprojection = fmaxf(1.0f, length(update)/alpha1);
+
+    d_q0[index] = update.x/reprojection;
+    d_q1[index] = update.y/reprojection;
+    d_q2[index] = update.z/reprojection;
+    d_q3[index] = update.w/reprojection;
+}
+
+
+void updateDualq( float* d_q0, float* d_q1,
+                       float* d_q2, float* d_q3,
+                       float* d_v0, float* d_v1,
+                       float sigma,
+                       int2 d_imageSize,
+                       const unsigned int stridef1,
+                       const float alpha1)
+{
+
+    dim3 block(boost::math::gcd<unsigned>(d_imageSize.x,8), boost::math::gcd<unsigned>(d_imageSize.y,8), 1);
+    dim3 grid( d_imageSize.x / block.x, d_imageSize.y / block.y);
+
+    update_dual_q<<<grid,block>>>(d_q0, d_q1, d_q2, d_q3,
+                                d_v0, d_v1, sigma,
+                                d_imageSize, stridef1,
+                                alpha1);
+
+}
+
+
+
+__global__ void update_primal_v( float* d_q0, float* d_q1,
+                               float* d_q2, float* d_q3,
+                               float* d_v0, float* d_v1,
+                               float* d_px, float* d_py,
+                               float tau,
+                               int2 d_imageSize,
+                               unsigned int stridef1,
+                               const float alpha1)
+{
+    unsigned int x = blockIdx.x*blockDim.x + threadIdx.x;
+    unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
+
+    int index = y*stridef1+x;
+
+    float dx_q2 = dxm(d_q2,x,y,d_imageSize,stridef1);
+    float dy_q2 = dym(d_q2,x,y,d_imageSize,stridef1);
+
+    float dx_q0 = dxm(d_q0,x,y,d_imageSize,stridef1);
+    float dy_q1 = dym(d_q1,x,y,d_imageSize,stridef1);
+
+    d_v0[index] = d_v0[index] + tau*(d_px[index] + dx_q0 + dy_q2);
+    d_v1[index] = d_v1[index] + tau*(d_py[index] + dx_q2 + dy_q1);
+}
+
+
+void updatePrimalv(float* d_q0, float* d_q1,
+                   float* d_q2, float* d_q3,
+                   float* d_v0, float* d_v1,
+                   float* d_px, float* d_py,
+                   float tau,
+                   int2 d_imageSize,
+                   unsigned int stridef1,
+                   const float alpha1)
+
+{
+    dim3 block(boost::math::gcd<unsigned>(d_imageSize.x,8), boost::math::gcd<unsigned>(d_imageSize.y,8), 1);
+    dim3 grid( d_imageSize.x / block.x, d_imageSize.y / block.y);
+
+    update_primal_v<<<grid,block>>>(d_q0, d_q1, d_q2, d_q3,
+                                d_v0, d_v1, d_px, d_py, tau,
+                                d_imageSize, stridef1,
+                                alpha1);
+}
+
+
+
 void doSortCriticalPoints(float2* critical_points,
                           float2* gradients_images,
                           const unsigned int width,
