@@ -1,0 +1,62 @@
+# Copyright (c) ICG. All rights reserved.
+#
+# Institute for Computer Graphics and Vision
+# Graz University of Technology / Austria
+#
+#
+# This software is distributed WITHOUT ANY WARRANTY; without even
+# the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+# PURPOSE.  See the above copyright notices for more information.
+#
+#
+# Project     : FlowLib
+# Module      : Testing
+# Language    : CMake
+# Description : CMakeFile for testing and evolution modules for the FlowLib
+#
+# Author     : Manuel Werlberger
+# EMail      : werlberger@icg.tugraz.at
+
+project(fl_testing CXX C)
+#set(CMAKE_BUILD_TYPE Debug)
+cmake_minimum_required(VERSION 2.8.0)
+
+FILE(TO_CMAKE_PATH "$ENV{CMAKE_MODULE_PATH}" OT_CMAKE_MODULE_PATH)
+FILE(TO_CMAKE_PATH "$ENV{VMLIBRARIES_ROOT}/cmake" OT_VMLIBRARIES_CMAKE_MODULE_PATH)
+SET(CMAKE_MODULE_PATH ${OT_CMAKE_MODULE_PATH} ${OT_VMLIBRARIES_CMAKE_MODULE_PATH})
+
+##-----------------------------------------------------------------------------
+## Compiler Flags
+if(UNIX)
+  # enable warnings
+  add_definitions( -Wall)
+  # and debug flags
+  add_definitions( -g )
+endif()
+
+IF(WIN32)
+  ADD_DEFINITIONS(-DWIN32)
+  # for msvc 8 deprecated warning removal
+  ADD_DEFINITIONS(-D_CRT_SECURE_NO_DEPRECATE)
+  ADD_DEFINITIONS(-D_CRT_NONSTDC_NO_DEPRECATE)
+  ADD_DEFINITIONS(-D_CRT_SECURE_NO_DEPRECATE_GLOBALS)
+
+  SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /NODEFAULTLIB:LIBCMT.lib")
+endif(WIN32)
+
+##-----------------------------------------------------------------------------
+# find iu and set the according libs
+find_package(ImageUtilities COMPONENTS iucore iuio)
+include(${IU_USE_FILE})
+
+## find flowlib
+find_package(FlowLib)
+include_directories(FLOWLIB_INCLUDE_DIR)
+cuda_include_directories(FLOWLIB_INCLUDE_DIR)
+
+set(ALL_LIBRARIES
+  ${IU_LIBRARIES} ${FLOWLIB_LIBRARIES}
+  )
+
+cuda_add_executable( flowlib_simpletest flowlib_simpletest)
+TARGET_LINK_LIBRARIES(flowlib_simpletest ${ALL_LIBRARIES})
