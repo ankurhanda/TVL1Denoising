@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+   <FileVersion major="1" minor="6" />
+   <Project>
+      <Option title="TVL1Denoising" />
+      <Option makefile_is_custom="1" />
+      <Option compiler="gcc" />
+      <Option virtualFolders="CMake Files\;CMake Files\..\;CMake Files\..\..\;CMake Files\..\..\..\;CMake Files\..\..\..\..\;CMake Files\..\..\..\..\..\;CMake Files\..\..\..\..\..\usr\;CMake Files\..\..\..\..\..\usr\share\;CMake Files\..\..\..\..\..\usr\share\cmake-2.8\;CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\;CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\Platform\;CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\Compiler\;CMake Files\CMakeModules\;CMake Files\CMakeModules\FindCUDA\;" />
+      <Build>
+      <Target title="all">
+         <Option working_dir="/home/ankur/workspace/code/TVL1Denoising" />
+         <Option type="4" />
+         <MakeCommands>
+            <Build command="/usr/bin/make -f &quot;/home/ankur/workspace/code/TVL1Denoising/Makefile&quot; all" />
+            <CompileFile command="/usr/bin/make -f &quot;/home/ankur/workspace/code/TVL1Denoising/Makefile&quot; &quot;$file&quot;" />
+            <Clean command="/usr/bin/make -f &quot;/home/ankur/workspace/code/TVL1Denoising/Makefile&quot; clean" />
+            <DistClean command="/usr/bin/make -f &quot;/home/ankur/workspace/code/TVL1Denoising/Makefile&quot; clean" />
+         </MakeCommands>
+      </Target>
+      <Target title="TVL1Denoising">
+         <Option output="/home/ankur/workspace/code/TVL1Denoising/TVL1Denoising" prefix_auto="0" extension_auto="0" />
+         <Option working_dir="/home/ankur/workspace/code/TVL1Denoising" />
+         <Option object_output="./" />
+         <Option type="1" />
+         <Option compiler="gcc" />
+         <Compiler>
+            <Add directory="/usr/local/cuda/include" />
+            <Add directory="/home/ankur/workspace/code/TVL1Denoising" />
+            <Add directory="/home/ankur/workspace/code/TVL1Denoising/src" />
+            <Add directory="/home/ankur/NVIDIA_GPU_Computing_SDK/C/common/inc" />
+            <Add directory="/home/ankur/workspace/code/Pangolin" />
+            <Add directory="/home/ankur/workspace/code/Pangolin/build" />
+            <Add directory="/usr/local/include" />
+            <Add directory="/home/ankur/workspace/code/minimal_imgutilities/src" />
+            <Add directory="/home/ankur/workspace/code/TVL1Denoising/../imgutilities/build" />
+         </Compiler>
+         <MakeCommands>
+            <Build command="/usr/bin/make -f &quot;/home/ankur/workspace/code/TVL1Denoising/Makefile&quot; TVL1Denoising" />
+            <CompileFile command="/usr/bin/make -f &quot;/home/ankur/workspace/code/TVL1Denoising/Makefile&quot; &quot;$file&quot;" />
+            <Clean command="/usr/bin/make -f &quot;/home/ankur/workspace/code/TVL1Denoising/Makefile&quot; clean" />
+            <DistClean command="/usr/bin/make -f &quot;/home/ankur/workspace/code/TVL1Denoising/Makefile&quot; clean" />
+         </MakeCommands>
+      </Target>
+      <Target title="TVL1Denoising/fast">
+         <Option output="/home/ankur/workspace/code/TVL1Denoising/TVL1Denoising" prefix_auto="0" extension_auto="0" />
+         <Option working_dir="/home/ankur/workspace/code/TVL1Denoising" />
+         <Option object_output="./" />
+         <Option type="1" />
+         <Option compiler="gcc" />
+         <Compiler>
+            <Add directory="/usr/local/cuda/include" />
+            <Add directory="/home/ankur/workspace/code/TVL1Denoising" />
+            <Add directory="/home/ankur/workspace/code/TVL1Denoising/src" />
+            <Add directory="/home/ankur/NVIDIA_GPU_Computing_SDK/C/common/inc" />
+            <Add directory="/home/ankur/workspace/code/Pangolin" />
+            <Add directory="/home/ankur/workspace/code/Pangolin/build" />
+            <Add directory="/usr/local/include" />
+            <Add directory="/home/ankur/workspace/code/minimal_imgutilities/src" />
+            <Add directory="/home/ankur/workspace/code/TVL1Denoising/../imgutilities/build" />
+         </Compiler>
+         <MakeCommands>
+            <Build command="/usr/bin/make -f &quot;/home/ankur/workspace/code/TVL1Denoising/Makefile&quot; TVL1Denoising/fast" />
+            <CompileFile command="/usr/bin/make -f &quot;/home/ankur/workspace/code/TVL1Denoising/Makefile&quot; &quot;$file&quot;" />
+            <Clean command="/usr/bin/make -f &quot;/home/ankur/workspace/code/TVL1Denoising/Makefile&quot; clean" />
+            <DistClean command="/usr/bin/make -f &quot;/home/ankur/workspace/code/TVL1Denoising/Makefile&quot; clean" />
+         </MakeCommands>
+      </Target>
+      <Target title="edit_cache">
+         <Option working_dir="/home/ankur/workspace/code/TVL1Denoising" />
+         <Option type="4" />
+         <MakeCommands>
+            <Build command="/usr/bin/make -f &quot;/home/ankur/workspace/code/TVL1Denoising/Makefile&quot; edit_cache" />
+            <CompileFile command="/usr/bin/make -f &quot;/home/ankur/workspace/code/TVL1Denoising/Makefile&quot; &quot;$file&quot;" />
+            <Clean command="/usr/bin/make -f &quot;/home/ankur/workspace/code/TVL1Denoising/Makefile&quot; clean" />
+            <DistClean command="/usr/bin/make -f &quot;/home/ankur/workspace/code/TVL1Denoising/Makefile&quot; clean" />
+         </MakeCommands>
+      </Target>
+      <Target title="rebuild_cache">
+         <Option working_dir="/home/ankur/workspace/code/TVL1Denoising" />
+         <Option type="4" />
+         <MakeCommands>
+            <Build command="/usr/bin/make -f &quot;/home/ankur/workspace/code/TVL1Denoising/Makefile&quot; rebuild_cache" />
+            <CompileFile command="/usr/bin/make -f &quot;/home/ankur/workspace/code/TVL1Denoising/Makefile&quot; &quot;$file&quot;" />
+            <Clean command="/usr/bin/make -f &quot;/home/ankur/workspace/code/TVL1Denoising/Makefile&quot; clean" />
+            <DistClean command="/usr/bin/make -f &quot;/home/ankur/workspace/code/TVL1Denoising/Makefile&quot; clean" />
+         </MakeCommands>
+      </Target>
+      </Build>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/src/depthest/TVL1DepthEstimation.cpp">
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/src/main.cpp">
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/./TVL1Denoising_generated_Strumdepthestimation.cu.o">
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/./TVL1Denoising_generated_disparity1D.cu.o">
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/./TVL1Denoising_generated_primal_dual_update.cu.o">
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/./TVL1Denoising_generated_tvl1_denoising.cu.o">
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/src/depthest/TVL1DepthEstimation.h">
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/src/kernels/Strumdepthestimation.cu">
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/src/kernels/Strumdepthestimation.h">
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/src/kernels/cumath.h">
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/src/kernels/disparity1D.cu">
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/src/kernels/primal_dual_update.cu">
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/src/kernels/primal_dual_update.h">
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/src/kernels/tvl1_denoising.cu">
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/src/utils.h">
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/CMakeLists.txt">
+          <Option virtualFolder="CMake Files\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/../../../../../usr/share/cmake-2.8/Modules/CMakeSystemSpecificInformation.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/../../../../../usr/share/cmake-2.8/Modules/CMakeGenericSystem.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/../../../../../usr/share/cmake-2.8/Modules/CMakeCInformation.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/../../../../../usr/share/cmake-2.8/Modules/CMakeCommonLanguageInclude.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/../../../../../usr/share/cmake-2.8/Modules/CMakeCXXInformation.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/../../../../../usr/share/cmake-2.8/Modules/CMakeCommonLanguageInclude.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/../../../../../usr/share/cmake-2.8/Modules/FindPackageHandleStandardArgs.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/../../../../../usr/share/cmake-2.8/Modules/FindPackageMessage.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/../../../../../usr/share/cmake-2.8/Modules/CMakeParseArguments.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/../../../../../usr/share/cmake-2.8/Modules/FindThreads.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/../../../../../usr/share/cmake-2.8/Modules/CheckIncludeFiles.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/../../../../../usr/share/cmake-2.8/Modules/CheckLibraryExists.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/../../../../../usr/share/cmake-2.8/Modules/FindPackageHandleStandardArgs.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/../../../../../usr/share/cmake-2.8/Modules/FindPackageMessage.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/../../../../../usr/share/cmake-2.8/Modules/CMakeParseArguments.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/../../../../../usr/share/cmake-2.8/Modules/FindBoost.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/../../../../../usr/share/cmake-2.8/Modules/Platform/Linux.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\Platform\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/../../../../../usr/share/cmake-2.8/Modules/Platform/UnixPaths.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\Platform\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/../../../../../usr/share/cmake-2.8/Modules/Platform/Linux-GNU-C.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\Platform\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/../../../../../usr/share/cmake-2.8/Modules/Platform/Linux-GNU.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\Platform\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/../../../../../usr/share/cmake-2.8/Modules/Platform/Linux-GNU-CXX.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\Platform\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/../../../../../usr/share/cmake-2.8/Modules/Platform/Linux-GNU.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\Platform\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/../../../../../usr/share/cmake-2.8/Modules/Compiler/GNU-C.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\Compiler\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/../../../../../usr/share/cmake-2.8/Modules/Compiler/GNU.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\Compiler\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/../../../../../usr/share/cmake-2.8/Modules/Compiler/GNU-CXX.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\Compiler\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/../../../../../usr/share/cmake-2.8/Modules/Compiler/GNU.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\..\usr\share\cmake-2.8\Modules\Compiler\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/CMakeModules/SetPlatformVars.cmake">
+          <Option virtualFolder="CMake Files\CMakeModules\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/CMakeModules/FindFREEGLUT.cmake">
+          <Option virtualFolder="CMake Files\CMakeModules\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/CMakeModules/FindCUDA.cmake">
+          <Option virtualFolder="CMake Files\CMakeModules\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/CMakeModules/FindGLEW.cmake">
+          <Option virtualFolder="CMake Files\CMakeModules\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/CMakeModules/FindPangolin.cmake">
+          <Option virtualFolder="CMake Files\CMakeModules\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/CMakeModules/FindCVD.cmake">
+          <Option virtualFolder="CMake Files\CMakeModules\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/CMakeModules/FindMinimalImgUtilities.cmake">
+          <Option virtualFolder="CMake Files\CMakeModules\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/CMakeModules/FindCUDA/run_nvcc.cmake">
+          <Option virtualFolder="CMake Files\CMakeModules\FindCUDA\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/CMakeModules/FindCUDA/run_nvcc.cmake">
+          <Option virtualFolder="CMake Files\CMakeModules\FindCUDA\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/CMakeModules/FindCUDA/run_nvcc.cmake">
+          <Option virtualFolder="CMake Files\CMakeModules\FindCUDA\" />
+      </Unit>
+      <Unit filename="/home/ankur/workspace/code/TVL1Denoising/CMakeModules/FindCUDA/run_nvcc.cmake">
+          <Option virtualFolder="CMake Files\CMakeModules\FindCUDA\" />
+      </Unit>
+   </Project>
+</CodeBlocks_project_file>
